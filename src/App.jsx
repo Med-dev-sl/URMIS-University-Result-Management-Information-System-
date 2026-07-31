@@ -31,29 +31,6 @@ const emptyDashboard = {
 
 const views = ['Dashboard', 'Students', 'Results', 'Academics']
 
-const projectProgressItems = [
-  {
-    title: 'Refactor status',
-    state: 'Done',
-    detail: 'App logic moved into lazy-loaded views and components to improve scalability.',
-  },
-  {
-    title: 'Modal notifications',
-    state: 'Done',
-    detail: 'Added a shared success/error modal for all create actions.',
-  },
-  {
-    title: 'Academic workflow',
-    state: 'Done',
-    detail: 'Separated faculty, department, course, and module creation into tabs.',
-  },
-  {
-    title: 'Next milestone',
-    state: 'In progress',
-    detail: 'Add result editing, backend validation, and sync project notes for handoff.',
-  },
-]
-
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [dashboard, setDashboard] = useState(emptyDashboard)
@@ -399,25 +376,6 @@ function App() {
         />
 
         <Modal visible={modalData.visible} type={modalData.type} message={modalData.message} onClose={() => setModalData((current) => ({ ...current, visible: false }))} />
-
-        {isDashboard && (
-          <section className="panel progress-panel">
-            <div className="panel-header">
-              <h3>Project progress</h3>
-            </div>
-            <div className="progress-list">
-              {projectProgressItems.map((item) => (
-                <article key={item.title} className="progress-item">
-                  <div className="progress-item-head">
-                    <strong>{item.title}</strong>
-                    <span className={`progress-state ${item.state.toLowerCase().replace(/ /g, '-')}`}>{item.state}</span>
-                  </div>
-                  <p>{item.detail}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
 
         {loading ? (
           <div className="loading-card">Loading...</div>
