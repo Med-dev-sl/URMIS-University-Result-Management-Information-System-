@@ -237,6 +237,52 @@
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
+.progress-panel {
+  margin-bottom: 24px;
+}
+
+.progress-list {
+  display: grid;
+  gap: 16px;
+}
+
+.progress-item {
+  padding: 18px 20px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 16px;
+}
+
+.progress-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.progress-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.progress-state.done {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.progress-state.in-progress {
+  color: #92400e;
+  background: #fef3c7;
+}
+
 .link-button {
   background: transparent;
   color: #2563eb;
