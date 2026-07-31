@@ -19,9 +19,21 @@ import {
 } from './shared/api'
 
 const DashboardView = lazy(() => import('./dashboard/DashboardView'))
+const AuthenticationView = lazy(() => import('./authentication/AuthenticationView'))
+const RegistrationView = lazy(() => import('./registration/RegistrationView'))
+const PlatformView = lazy(() => import('./platform/PlatformView'))
+const InstitutionView = lazy(() => import('./institution/AcademicsView'))
+const StaffView = lazy(() => import('./staff/StaffView'))
 const StudentsView = lazy(() => import('./students/StudentsView'))
+const CoursesView = lazy(() => import('./courses/CoursesView'))
+const AssessmentsView = lazy(() => import('./assessments/AssessmentsView'))
 const ResultsView = lazy(() => import('./results/ResultsView'))
-const AcademicsView = lazy(() => import('./institution/AcademicsView'))
+const ExaminationView = lazy(() => import('./examination/ExaminationView'))
+const ApprovalView = lazy(() => import('./approval/ApprovalView'))
+const DocumentsView = lazy(() => import('./documents/DocumentsView'))
+const ReportsView = lazy(() => import('./reports/ReportsView'))
+const CommunicationView = lazy(() => import('./communication/CommunicationView'))
+const SettingsView = lazy(() => import('./settings/SettingsView'))
 
 const emptyDashboard = {
   stats: [],
@@ -29,7 +41,24 @@ const emptyDashboard = {
   recentResults: [],
 }
 
-const views = ['Dashboard', 'Students', 'Results', 'Academics']
+const views = [
+  'Dashboard',
+  'Authentication',
+  'Registration',
+  'Platform',
+  'Institution',
+  'Staff',
+  'Students',
+  'Courses',
+  'Assessments',
+  'Results',
+  'Examination',
+  'Approval',
+  'Documents',
+  'Reports',
+  'Communication',
+  'Settings',
+]
 
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
@@ -68,7 +97,7 @@ function App() {
   const isDashboard = activeView === 'Dashboard'
   const isStudents = activeView === 'Students'
   const isResults = activeView === 'Results'
-  const isAcademics = activeView === 'Academics'
+  const isInstitution = activeView === 'Institution'
 
   const showError = useCallback((message) => {
     setModalData({ visible: true, type: 'error', message })
@@ -172,10 +201,10 @@ function App() {
       fetchResults().then(setResults).catch((err) => showError(err.message))
       fetchCourses().then(setCourses).catch((err) => showError(err.message))
     }
-    if (isAcademics) {
+    if (isInstitution) {
       fetchFaculties().then(setFaculties).catch((err) => showError(err.message))
     }
-  }, [activeView, isStudents, isResults, isAcademics, showError])
+  }, [activeView, isStudents, isResults, isInstitution, showError])
 
   const studentOptions = useMemo(
     () => students.map((student) => ({ value: student.id, label: `${student.full_name} (${student.student_id})` })),
@@ -371,30 +400,20 @@ function App() {
             if (isDashboard) loadDashboard()
             if (isStudents) loadStudents()
             if (isResults) loadResults()
-            if (isAcademics) loadFaculties()
+            if (isInstitution) loadFaculties()
           }}
         />
-
-        <Modal visible={modalData.visible} type={modalData.type} message={modalData.message} onClose={() => setModalData((current) => ({ ...current, visible: false }))} />
 
         {loading ? (
           <div className="loading-card">Loading...</div>
         ) : (
           <Suspense fallback={<div className="loading-card">Loading view...</div>}>
             {isDashboard && <DashboardView dashboard={dashboard} onViewChange={setActiveView} />}
-            {isStudents && <StudentsView students={students} />}
-            {isResults && (
-              <ResultsView
-                results={results}
-                studentOptions={studentOptions}
-                courseOptions={courseOptions}
-                formState={formState}
-                onInputChange={handleInputChange}
-                onSubmit={handleResultSubmit}
-              />
-            )}
-            {isAcademics && (
-              <AcademicsView
+            {activeView === 'Authentication' && <AuthenticationView />}
+            {activeView === 'Registration' && <RegistrationView />}
+            {activeView === 'Platform' && <PlatformView />}
+            {isInstitution && (
+              <InstitutionView
                 selectedFaculty={selectedFaculty}
                 selectedDepartment={selectedDepartment}
                 selectedCourse={selectedCourse}
@@ -415,6 +434,26 @@ function App() {
                 academicForm={academicForm}
               />
             )}
+            {activeView === 'Staff' && <StaffView />}
+            {isStudents && <StudentsView students={students} />}
+            {activeView === 'Courses' && <CoursesView />}
+            {activeView === 'Assessments' && <AssessmentsView />}
+            {isResults && (
+              <ResultsView
+                results={results}
+                studentOptions={studentOptions}
+                courseOptions={courseOptions}
+                formState={formState}
+                onInputChange={handleInputChange}
+                onSubmit={handleResultSubmit}
+              />
+            )}
+            {activeView === 'Examination' && <ExaminationView />}
+            {activeView === 'Approval' && <ApprovalView />}
+            {activeView === 'Documents' && <DocumentsView />}
+            {activeView === 'Reports' && <ReportsView />}
+            {activeView === 'Communication' && <CommunicationView />}
+            {activeView === 'Settings' && <SettingsView />}
           </Suspense>
         )}
       </section>
