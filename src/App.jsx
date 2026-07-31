@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import './App.css'
 import Sidebar from './shared/components/Sidebar'
 import Topbar from './shared/components/Topbar'
@@ -30,6 +30,29 @@ const emptyDashboard = {
 }
 
 const views = ['Dashboard', 'Students', 'Results', 'Academics']
+
+const projectProgressItems = [
+  {
+    title: 'Refactor status',
+    state: 'Done',
+    detail: 'App logic moved into lazy-loaded views and components to improve scalability.',
+  },
+  {
+    title: 'Modal notifications',
+    state: 'Done',
+    detail: 'Added a shared success/error modal for all create actions.',
+  },
+  {
+    title: 'Academic workflow',
+    state: 'Done',
+    detail: 'Separated faculty, department, course, and module creation into tabs.',
+  },
+  {
+    title: 'Next milestone',
+    state: 'In progress',
+    detail: 'Add result editing, backend validation, and sync project notes for handoff.',
+  },
+]
 
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
@@ -70,11 +93,11 @@ function App() {
   const isResults = activeView === 'Results'
   const isAcademics = activeView === 'Academics'
 
-  const showError = (message) => {
+  const showError = useCallback((message) => {
     setModalData({ visible: true, type: 'error', message })
-  }
+  }, [])
 
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     setLoading(true)
     try {
       const data = await fetchDashboard()
@@ -84,9 +107,9 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [showError])
 
-  const loadStudents = async () => {
+  const loadStudents = useCallback(async () => {
     setLoading(true)
     try {
       const data = await fetchStudents()
@@ -96,9 +119,9 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [showError])
 
-  const loadResults = async () => {
+  const loadResults = useCallback(async () => {
     setLoading(true)
     try {
       const data = await fetchResults()
@@ -108,9 +131,9 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [showError])
 
-  const loadCourses = async (departmentId) => {
+  const loadCourses = useCallback(async (departmentId) => {
     setLoading(true)
     try {
       const data = await fetchCourses(departmentId)
@@ -120,9 +143,9 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [showError])
 
-  const loadFaculties = async () => {
+  const loadFaculties = useCallback(async () => {
     setLoading(true)
     try {
       const data = await fetchFaculties()
@@ -132,9 +155,9 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [showError])
 
-  const loadDepartments = async (facultyId) => {
+  const loadDepartments = useCallback(async (facultyId) => {
     setLoading(true)
     try {
       const data = await fetchDepartments(facultyId)
@@ -144,9 +167,9 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [showError])
 
-  const loadModules = async (courseId) => {
+  const loadModules = useCallback(async (courseId) => {
     setLoading(true)
     try {
       const data = await fetchModules(courseId)
@@ -156,20 +179,26 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [showError])
 
   useEffect(() => {
-    loadDashboard()
-  }, [])
+    fetchDashboard()
+      .then(setDashboard)
+      .catch((err) => showError(err.message))
+  }, [showError])
 
   useEffect(() => {
-    if (isStudents) loadStudents()
-    if (isResults) {
-      loadResults()
-      loadCourses()
+    if (isStudents) {
+      fetchStudents().then(setStudents).catch((err) => showError(err.message))
     }
-    if (isAcademics) loadFaculties()
-  }, [activeView, isStudents, isResults, isAcademics])
+    if (isResults) {
+      fetchResults().then(setResults).catch((err) => showError(err.message))
+      fetchCourses().then(setCourses).catch((err) => showError(err.message))
+    }
+    if (isAcademics) {
+      fetchFaculties().then(setFaculties).catch((err) => showError(err.message))
+    }
+  }, [activeView, isStudents, isResults, isAcademics, showError])
 
   const studentOptions = useMemo(
     () => students.map((student) => ({ value: student.id, label: `${student.full_name} (${student.student_id})` })),
@@ -370,6 +399,25 @@ function App() {
         />
 
         <Modal visible={modalData.visible} type={modalData.type} message={modalData.message} onClose={() => setModalData((current) => ({ ...current, visible: false }))} />
+
+        {isDashboard && (
+          <section className="panel progress-panel">
+            <div className="panel-header">
+              <h3>Project progress</h3>
+            </div>
+            <div className="progress-list">
+              {projectProgressItems.map((item) => (
+                <article key={item.title} className="progress-item">
+                  <div className="progress-item-head">
+                    <strong>{item.title}</strong>
+                    <span className={`progress-state ${item.state.toLowerCase().replace(/ /g, '-')}`}>{item.state}</span>
+                  </div>
+                  <p>{item.detail}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
 
         {loading ? (
           <div className="loading-card">Loading...</div>
