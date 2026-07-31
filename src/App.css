@@ -46,7 +46,20 @@
 .nav {
   display: flex;
   flex-direction: column;
+  gap: 18px;
+}
+
+.nav-group {
+  display: grid;
   gap: 10px;
+}
+
+.nav-group-label {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .nav-item {
@@ -58,7 +71,7 @@
   border-radius: 12px;
   cursor: pointer;
   font-size: 0.95rem;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .nav-item.active,

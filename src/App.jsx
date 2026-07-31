@@ -41,23 +41,19 @@ const emptyDashboard = {
   recentResults: [],
 }
 
-const views = [
-  'Dashboard',
-  'Authentication',
-  'Registration',
-  'Platform',
-  'Institution',
-  'Staff',
-  'Students',
-  'Courses',
-  'Assessments',
-  'Results',
-  'Examination',
-  'Approval',
-  'Documents',
-  'Reports',
-  'Communication',
-  'Settings',
+const viewGroups = [
+  {
+    label: 'Platform',
+    items: ['Dashboard', 'Platform', 'Authentication', 'Registration'],
+  },
+  {
+    label: 'Academics',
+    items: ['Institution', 'Staff', 'Students', 'Courses', 'Assessments', 'Results'],
+  },
+  {
+    label: 'Operations',
+    items: ['Examination', 'Approval', 'Documents', 'Reports', 'Communication', 'Settings'],
+  },
 ]
 
 function App() {
@@ -386,11 +382,9 @@ function App() {
   return (
     <main className="dashboard-shell" aria-label="URMIS dashboard">
       <Sidebar
-        views={views}
+        viewGroups={viewGroups}
         activeView={activeView}
-        onSelectView={(view) => {
-          setActiveView(view)
-        }}
+        onSelectView={(view) => setActiveView(view)}
       />
 
       <section className="main-panel">

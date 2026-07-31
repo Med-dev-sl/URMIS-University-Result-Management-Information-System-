@@ -1,4 +1,4 @@
-export default function Sidebar({ views, activeView, onSelectView }) {
+export default function Sidebar({ viewGroups, activeView, onSelectView }) {
   return (
     <aside className="sidebar">
       <div className="brand-block">
@@ -10,15 +10,20 @@ export default function Sidebar({ views, activeView, onSelectView }) {
       </div>
 
       <nav className="nav" aria-label="Main navigation">
-        {views.map((view) => (
-          <button
-            key={view}
-            className={`nav-item ${view === activeView ? 'active' : ''}`}
-            type="button"
-            onClick={() => onSelectView(view)}
-          >
-            {view}
-          </button>
+        {viewGroups.map((group) => (
+          <div key={group.label} className="nav-group">
+            <p className="nav-group-label">{group.label}</p>
+            {group.items.map((view) => (
+              <button
+                key={view}
+                className={`nav-item ${view === activeView ? 'active' : ''}`}
+                type="button"
+                onClick={() => onSelectView(view)}
+              >
+                {view}
+              </button>
+            ))}
+          </div>
         ))}
       </nav>
     </aside>
