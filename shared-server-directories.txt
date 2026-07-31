@@ -1,0 +1,6 @@
+﻿C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\server\shared\constants
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\server\shared\middlewares
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\server\shared\models
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\server\shared\security
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\server\shared\services
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\server\shared\utils

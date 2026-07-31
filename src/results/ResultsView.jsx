@@ -1,3 +1,5 @@
+import ResultForm from './ResultForm'
+
 export default function ResultsView({ results, studentOptions, courseOptions, formState, onInputChange, onSubmit }) {
   return (
     <>

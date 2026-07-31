@@ -1,8 +1,8 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import './App.css'
-import Sidebar from './components/Sidebar'
-import Topbar from './components/Topbar'
-import Modal from './components/Modal'
+import Sidebar from './shared/components/Sidebar'
+import Topbar from './shared/components/Topbar'
+import Modal from './shared/components/Modal'
 import {
   createCourse,
   createDepartment,
@@ -16,12 +16,12 @@ import {
   fetchModules,
   fetchResults,
   fetchStudents,
-} from './api'
+} from './shared/api'
 
-const DashboardView = lazy(() => import('./views/DashboardView'))
-const StudentsView = lazy(() => import('./views/StudentsView'))
-const ResultsView = lazy(() => import('./views/ResultsView'))
-const AcademicsView = lazy(() => import('./views/AcademicsView'))
+const DashboardView = lazy(() => import('./dashboard/DashboardView'))
+const StudentsView = lazy(() => import('./students/StudentsView'))
+const ResultsView = lazy(() => import('./results/ResultsView'))
+const AcademicsView = lazy(() => import('./institution/AcademicsView'))
 
 const emptyDashboard = {
   stats: [],

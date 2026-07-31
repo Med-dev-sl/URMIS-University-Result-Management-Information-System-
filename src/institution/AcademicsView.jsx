@@ -1,6 +1,6 @@
-import AcademicsOverview from '../components/AcademicsOverview'
-import AcademicTabs from '../components/AcademicTabs'
-import AcademicPanels from '../components/AcademicPanels'
+import AcademicsOverview from './components/AcademicsOverview'
+import AcademicTabs from './components/AcademicTabs'
+import AcademicPanels from './components/AcademicPanels'
 
 export default function AcademicsView({
   selectedFaculty,

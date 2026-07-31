@@ -6,10 +6,10 @@ import { getAll, getOne, initializeDatabase, runSql } from './db.js'
 import healthRoutes from './routes/health.js'
 import studentsRoutes from './routes/students.js'
 import resultsRoutes from './routes/results.js'
-import coursesRoutes from './routes/courses.js'
-import departmentsRoutes from './routes/departments.js'
-import facultiesRoutes from './routes/faculties.js'
-import modulesRoutes from './routes/modules.js'
+import coursesRoutes from './routes/courses/courses.js'
+import departmentsRoutes from './routes/institution/departments.js'
+import facultiesRoutes from './routes/institution/faculties.js'
+import modulesRoutes from './routes/courses/modules.js'
 
 dotenv.config()
 

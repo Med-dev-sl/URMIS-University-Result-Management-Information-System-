@@ -1,0 +1,12 @@
+﻿C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\src\shared\academic
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\src\shared\components
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\src\shared\constants
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\src\shared\dashboard
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\src\shared\documents
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\src\shared\hooks
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\src\shared\models
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\src\shared\notifications
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\src\shared\security
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\src\shared\services
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\src\shared\utils
+C:\Users\DELL\Desktop\Result app\APP\app\URMIS-University-Result-Management-Information-System-\src\shared\validation
