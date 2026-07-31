@@ -1,6 +1,27 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import './App.css'
-import { createResult, fetchCourses, fetchDashboard, fetchResults, fetchStudents } from './api'
+import Sidebar from './components/Sidebar'
+import Topbar from './components/Topbar'
+import Modal from './components/Modal'
+import {
+  createCourse,
+  createDepartment,
+  createFaculty,
+  createModule,
+  createResult,
+  fetchCourses,
+  fetchDashboard,
+  fetchDepartments,
+  fetchFaculties,
+  fetchModules,
+  fetchResults,
+  fetchStudents,
+} from './api'
+
+const DashboardView = lazy(() => import('./views/DashboardView'))
+const StudentsView = lazy(() => import('./views/StudentsView'))
+const ResultsView = lazy(() => import('./views/ResultsView'))
+const AcademicsView = lazy(() => import('./views/AcademicsView'))
 
 const emptyDashboard = {
   stats: [],
@@ -8,31 +29,58 @@ const emptyDashboard = {
   recentResults: [],
 }
 
-const views = ['Dashboard', 'Students', 'Results']
+const views = ['Dashboard', 'Students', 'Results', 'Academics']
 
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [dashboard, setDashboard] = useState(emptyDashboard)
   const [students, setStudents] = useState([])
+  const [faculties, setFaculties] = useState([])
+  const [departments, setDepartments] = useState([])
   const [courses, setCourses] = useState([])
+  const [modules, setModules] = useState([])
+  const [selectedFaculty, setSelectedFaculty] = useState('')
+  const [selectedDepartment, setSelectedDepartment] = useState('')
+  const [selectedCourse, setSelectedCourse] = useState('')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
-  const [formState, setFormState] = useState({ student_id: '', course_id: '', assignment_score: '', exam_score: '', academic_session: '' })
+  const [formState, setFormState] = useState({
+    student_id: '',
+    course_id: '',
+    assignment_score: '',
+    exam_score: '',
+    academic_session: '',
+  })
+  const [academicForm, setAcademicForm] = useState({
+    facultyName: '',
+    departmentName: '',
+    courseCode: '',
+    courseName: '',
+    courseCreditHours: 3,
+    moduleCode: '',
+    moduleName: '',
+    moduleCreditHours: 1,
+    moduleDescription: '',
+  })
+  const [activeAcademicTab, setActiveAcademicTab] = useState('Faculty')
+  const [modalData, setModalData] = useState({ visible: false, type: 'success', message: '' })
 
   const isDashboard = activeView === 'Dashboard'
   const isStudents = activeView === 'Students'
   const isResults = activeView === 'Results'
+  const isAcademics = activeView === 'Academics'
+
+  const showError = (message) => {
+    setModalData({ visible: true, type: 'error', message })
+  }
 
   const loadDashboard = async () => {
     setLoading(true)
-    setError('')
     try {
       const data = await fetchDashboard()
       setDashboard(data)
     } catch (err) {
-      setError(err.message)
+      showError(err.message)
     } finally {
       setLoading(false)
     }
@@ -40,12 +88,11 @@ function App() {
 
   const loadStudents = async () => {
     setLoading(true)
-    setError('')
     try {
       const data = await fetchStudents()
       setStudents(data)
     } catch (err) {
-      setError(err.message)
+      showError(err.message)
     } finally {
       setLoading(false)
     }
@@ -53,53 +100,90 @@ function App() {
 
   const loadResults = async () => {
     setLoading(true)
-    setError('')
     try {
       const data = await fetchResults()
       setResults(data)
     } catch (err) {
-      setError(err.message)
+      showError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  const loadCourses = async () => {
+  const loadCourses = async (departmentId) => {
     setLoading(true)
-    setError('')
     try {
-      const data = await fetchCourses()
+      const data = await fetchCourses(departmentId)
       setCourses(data)
     } catch (err) {
-      setError(err.message)
+      showError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadFaculties = async () => {
+    setLoading(true)
+    try {
+      const data = await fetchFaculties()
+      setFaculties(data)
+    } catch (err) {
+      showError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadDepartments = async (facultyId) => {
+    setLoading(true)
+    try {
+      const data = await fetchDepartments(facultyId)
+      setDepartments(data)
+    } catch (err) {
+      showError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadModules = async (courseId) => {
+    setLoading(true)
+    try {
+      const data = await fetchModules(courseId)
+      setModules(data)
+    } catch (err) {
+      showError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    const boot = async () => {
-      await loadDashboard()
-    }
-
-    boot()
+    loadDashboard()
   }, [])
 
   useEffect(() => {
-    const loadViewData = async () => {
-      if (isStudents) await loadStudents()
-      if (isResults) {
-        await loadResults()
-        await loadCourses()
-      }
+    if (isStudents) loadStudents()
+    if (isResults) {
+      loadResults()
+      loadCourses()
     }
-
-    loadViewData()
-  }, [activeView, isResults, isStudents])
+    if (isAcademics) loadFaculties()
+  }, [activeView, isStudents, isResults, isAcademics])
 
   const studentOptions = useMemo(
     () => students.map((student) => ({ value: student.id, label: `${student.full_name} (${student.student_id})` })),
     [students],
+  )
+
+  const facultyOptions = useMemo(
+    () => faculties.map((faculty) => ({ value: faculty.id, label: faculty.name })),
+    [faculties],
+  )
+
+  const departmentOptions = useMemo(
+    () => departments.map((department) => ({ value: department.id, label: department.name })),
+    [departments],
   )
 
   const courseOptions = useMemo(
@@ -107,17 +191,107 @@ function App() {
     [courses],
   )
 
+  const moduleList = useMemo(() => modules, [modules])
+
   const handleInputChange = (event) => {
     const { name, value } = event.target
     setFormState((current) => ({ ...current, [name]: value }))
   }
 
+  const handleAcademicInputChange = (event) => {
+    const { name, value } = event.target
+    setAcademicForm((current) => ({ ...current, [name]: value }))
+  }
+
+  const handleCreateFaculty = async (event) => {
+    event.preventDefault()
+    setLoading(true)
+    try {
+      await createFaculty({ name: academicForm.facultyName })
+      setModalData({ visible: true, type: 'success', message: 'Faculty created successfully.' })
+      setAcademicForm((current) => ({ ...current, facultyName: '' }))
+      loadFaculties()
+    } catch (err) {
+      showError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateDepartment = async (event) => {
+    event.preventDefault()
+    if (!selectedFaculty) {
+      showError('Select a faculty before creating a department.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      await createDepartment({ name: academicForm.departmentName, faculty_id: selectedFaculty })
+      setModalData({ visible: true, type: 'success', message: 'Department created successfully.' })
+      setAcademicForm((current) => ({ ...current, departmentName: '' }))
+      loadDepartments(selectedFaculty)
+    } catch (err) {
+      showError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateCourse = async (event) => {
+    event.preventDefault()
+    if (!selectedDepartment) {
+      showError('Select a department before creating a course.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      await createCourse({
+        course_code: academicForm.courseCode,
+        course_name: academicForm.courseName,
+        credit_hours: Number(academicForm.courseCreditHours),
+        department_id: selectedDepartment,
+      })
+      setModalData({ visible: true, type: 'success', message: 'Course created successfully.' })
+      setAcademicForm((current) => ({ ...current, courseCode: '', courseName: '', courseCreditHours: 3 }))
+      loadCourses(selectedDepartment)
+    } catch (err) {
+      showError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateModule = async (event) => {
+    event.preventDefault()
+    if (!selectedCourse) {
+      showError('Select a course before creating a module.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      await createModule({
+        module_code: academicForm.moduleCode,
+        module_name: academicForm.moduleName,
+        credit_hours: Number(academicForm.moduleCreditHours),
+        description: academicForm.moduleDescription,
+        course_id: selectedCourse,
+      })
+      setModalData({ visible: true, type: 'success', message: 'Module created successfully.' })
+      setAcademicForm((current) => ({ ...current, moduleCode: '', moduleName: '', moduleCreditHours: 1, moduleDescription: '' }))
+      loadModules(selectedCourse)
+    } catch (err) {
+      showError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleResultSubmit = async (event) => {
     event.preventDefault()
     setLoading(true)
-    setError('')
-    setSuccessMessage('')
-
     try {
       await createResult({
         student_id: Number(formState.student_id),
@@ -127,246 +301,115 @@ function App() {
         academic_session: formState.academic_session,
       })
 
-      setSuccessMessage('Result saved successfully.')
+      setModalData({ visible: true, type: 'success', message: 'Result saved successfully.' })
       setFormState({ student_id: '', course_id: '', assignment_score: '', exam_score: '', academic_session: '' })
       loadResults()
       loadDashboard()
     } catch (err) {
-      setError(err.message)
+      showError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
+  const onFacultyChange = async (event) => {
+    const facultyId = event.target.value
+    setSelectedFaculty(facultyId)
+    setSelectedDepartment('')
+    setSelectedCourse('')
+    setDepartments([])
+    setCourses([])
+    setModules([])
+
+    if (facultyId) {
+      loadDepartments(facultyId)
+    }
+  }
+
+  const onDepartmentChange = async (event) => {
+    const departmentId = event.target.value
+    setSelectedDepartment(departmentId)
+    setSelectedCourse('')
+    setCourses([])
+    setModules([])
+
+    if (departmentId) {
+      loadCourses(departmentId)
+    }
+  }
+
+  const onCourseChange = async (event) => {
+    const courseId = event.target.value
+    setSelectedCourse(courseId)
+    setModules([])
+
+    if (courseId) {
+      loadModules(courseId)
+    }
+  }
+
   return (
     <main className="dashboard-shell" aria-label="URMIS dashboard">
-      <aside className="sidebar">
-        <div className="brand-block">
-          <div className="brand-mark">U</div>
-          <div>
-            <p className="eyebrow">Platform</p>
-            <h1>URMIS</h1>
-          </div>
-        </div>
-
-        <nav className="nav" aria-label="Main navigation">
-          {views.map((view) => (
-            <button
-              key={view}
-              className={`nav-item ${view === activeView ? 'active' : ''}`}
-              type="button"
-              onClick={() => {
-                setActiveView(view)
-                setError('')
-                setSuccessMessage('')
-              }}
-            >
-              {view}
-            </button>
-          ))}
-        </nav>
-      </aside>
+      <Sidebar
+        views={views}
+        activeView={activeView}
+        onSelectView={(view) => {
+          setActiveView(view)
+        }}
+      />
 
       <section className="main-panel">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">Academic overview</p>
-            <h2>{activeView}</h2>
-          </div>
+        <Topbar
+          activeView={activeView}
+          onRefresh={() => {
+            if (isDashboard) loadDashboard()
+            if (isStudents) loadStudents()
+            if (isResults) loadResults()
+            if (isAcademics) loadFaculties()
+          }}
+        />
 
-          <button
-            className="primary-button"
-            type="button"
-            onClick={() => {
-              if (isDashboard) loadDashboard()
-              if (isStudents) loadStudents()
-              if (isResults) loadResults()
-            }}
-          >
-            Refresh
-          </button>
-        </header>
-
-        {error ? (
-          <div className="alert" role="alert">
-            {error}
-          </div>
-        ) : null}
-
-        {successMessage ? (
-          <div className="success" role="status">
-            {successMessage}
-          </div>
-        ) : null}
+        <Modal visible={modalData.visible} type={modalData.type} message={modalData.message} onClose={() => setModalData((current) => ({ ...current, visible: false }))} />
 
         {loading ? (
           <div className="loading-card">Loading...</div>
-        ) : isDashboard ? (
-          <>
-            <section className="stats-grid" aria-label="Key metrics">
-              {dashboard.stats.map((stat) => (
-                <article key={stat.label} className="stat-card">
-                  <div className="stat-meta">
-                    <span className="stat-label">{stat.label}</span>
-                    <span className="stat-trend">{stat.trend}</span>
-                  </div>
-                  <strong className="stat-value">{stat.value}</strong>
-                </article>
-              ))}
-            </section>
-
-            <section className="content-grid">
-              <article className="panel">
-                <div className="panel-header">
-                  <h3>Students</h3>
-                  <button type="button" className="link-button" onClick={() => setActiveView('Students')}>
-                    View all
-                  </button>
-                </div>
-
-                <ul className="student-list">
-                  {dashboard.students.map((student) => (
-                    <li key={student.id} className="student-item">
-                      <div>
-                        <strong>{student.full_name}</strong>
-                        <span>
-                          {student.student_id} · {student.department_name}
-                        </span>
-                      </div>
-                      <span className="student-badge">{student.semester}</span>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-
-              <article className="panel">
-                <div className="panel-header">
-                  <h3>Recent results</h3>
-                  <button type="button" className="link-button" onClick={() => setActiveView('Results')}>
-                    View all
-                  </button>
-                </div>
-
-                <ul className="results-list">
-                  {dashboard.recentResults.map((result) => (
-                    <li key={result.id} className="result-item">
-                      <div>
-                        <strong>{result.student_name}</strong>
-                        <span>{result.course_name}</span>
-                      </div>
-                      <div className="result-score">
-                        <span>{result.grade}</span>
-                        <small>{result.percentage}%</small>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            </section>
-          </>
-        ) : isStudents ? (
-          <article className="panel full-width-panel">
-            <div className="panel-header">
-              <h3>All students</h3>
-            </div>
-
-            <ul className="student-list">
-              {students.map((student) => (
-                <li key={student.id} className="student-item">
-                  <div>
-                    <strong>{student.full_name}</strong>
-                    <span>
-                      {student.student_id} · {student.department_name} · {student.enrollment_year}
-                    </span>
-                  </div>
-                  <span className="student-badge">{student.semester}</span>
-                </li>
-              ))}
-            </ul>
-          </article>
         ) : (
-          <article className="panel full-width-panel">
-            <div className="panel-header">
-              <h3>Enter a new result</h3>
-            </div>
-
-            <form className="result-form" onSubmit={handleResultSubmit}>
-              <label>
-                Student
-                <select name="student_id" value={formState.student_id} onChange={handleInputChange} required>
-                  <option value="">Select a student</option>
-                  {studentOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Course
-                <select name="course_id" value={formState.course_id} onChange={handleInputChange} required>
-                  <option value="">Select a course</option>
-                  {courseOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="form-row">
-                <label>
-                  Assignment score
-                  <input
-                    type="number"
-                    name="assignment_score"
-                    value={formState.assignment_score}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </label>
-                <label>
-                  Exam score
-                  <input type="number" name="exam_score" value={formState.exam_score} onChange={handleInputChange} required />
-                </label>
-              </div>
-
-              <label>
-                Academic session
-                <input
-                  name="academic_session"
-                  value={formState.academic_session}
-                  onChange={handleInputChange}
-                  placeholder="2024/2025"
-                  required
-                />
-              </label>
-
-              <button type="submit" className="primary-button">
-                Save result
-              </button>
-            </form>
-
-            <div className="panel-header" style={{ marginTop: '28px' }}>
-              <h3>Recent results</h3>
-            </div>
-
-            <ul className="results-list">
-              {results.map((result) => (
-                <li key={result.id} className="result-item">
-                  <div>
-                    <strong>{result.student_name}</strong>
-                    <span>{result.course_name}</span>
-                  </div>
-                  <div className="result-score">
-                    <span>{result.grade}</span>
-                    <small>{result.percentage}%</small>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </article>
+          <Suspense fallback={<div className="loading-card">Loading view...</div>}>
+            {isDashboard && <DashboardView dashboard={dashboard} onViewChange={setActiveView} />}
+            {isStudents && <StudentsView students={students} />}
+            {isResults && (
+              <ResultsView
+                results={results}
+                studentOptions={studentOptions}
+                courseOptions={courseOptions}
+                formState={formState}
+                onInputChange={handleInputChange}
+                onSubmit={handleResultSubmit}
+              />
+            )}
+            {isAcademics && (
+              <AcademicsView
+                selectedFaculty={selectedFaculty}
+                selectedDepartment={selectedDepartment}
+                selectedCourse={selectedCourse}
+                facultyOptions={facultyOptions}
+                departmentOptions={departmentOptions}
+                courseOptions={courseOptions}
+                moduleList={moduleList}
+                activeAcademicTab={activeAcademicTab}
+                onChangeTab={setActiveAcademicTab}
+                onAcademicInputChange={handleAcademicInputChange}
+                onFacultyChange={onFacultyChange}
+                onDepartmentChange={onDepartmentChange}
+                onCourseChange={onCourseChange}
+                onCreateFaculty={handleCreateFaculty}
+                onCreateDepartment={handleCreateDepartment}
+                onCreateCourse={handleCreateCourse}
+                onCreateModule={handleCreateModule}
+                academicForm={academicForm}
+              />
+            )}
+          </Suspense>
         )}
       </section>
     </main>

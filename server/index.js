@@ -7,6 +7,7 @@ import healthRoutes from './routes/health.js'
 import studentsRoutes from './routes/students.js'
 import resultsRoutes from './routes/results.js'
 import coursesRoutes from './routes/courses.js'
+import departmentsRoutes from './routes/departments.js'
 import facultiesRoutes from './routes/faculties.js'
 import modulesRoutes from './routes/modules.js'
 
@@ -151,6 +152,7 @@ app.use('/api/health', healthRoutes)
 app.use('/api/students', studentsRoutes)
 app.use('/api/results', resultsRoutes)
 app.use('/api/courses', coursesRoutes)
+app.use('/api/departments', departmentsRoutes)
 app.use('/api/faculties', facultiesRoutes)
 app.use('/api/modules', modulesRoutes)
 
