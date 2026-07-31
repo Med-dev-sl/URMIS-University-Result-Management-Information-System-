@@ -10,6 +10,17 @@ import coursesRoutes from './routes/courses/courses.js'
 import departmentsRoutes from './routes/institution/departments.js'
 import facultiesRoutes from './routes/institution/faculties.js'
 import modulesRoutes from './routes/courses/modules.js'
+import platformRoutes from './routes/platform/index.js'
+import authRoutes from './routes/auth/index.js'
+import registrationRoutes from './routes/registration/index.js'
+import staffRoutes from './routes/staff/index.js'
+import assessmentsRoutes from './routes/assessments/index.js'
+import examinationRoutes from './routes/examination/index.js'
+import approvalRoutes from './routes/approval/index.js'
+import documentsRoutes from './routes/documents/index.js'
+import reportsRoutes from './routes/reports/index.js'
+import communicationRoutes from './routes/communication/index.js'
+import settingsRoutes from './routes/settings/index.js'
 
 dotenv.config()
 
@@ -155,6 +166,17 @@ app.use('/api/courses', coursesRoutes)
 app.use('/api/departments', departmentsRoutes)
 app.use('/api/faculties', facultiesRoutes)
 app.use('/api/modules', modulesRoutes)
+app.use('/api/platform', platformRoutes)
+app.use('/api/auth', authRoutes)
+app.use('/api/registration', registrationRoutes)
+app.use('/api/staff', staffRoutes)
+app.use('/api/assessments', assessmentsRoutes)
+app.use('/api/examination', examinationRoutes)
+app.use('/api/approval', approvalRoutes)
+app.use('/api/documents', documentsRoutes)
+app.use('/api/reports', reportsRoutes)
+app.use('/api/communication', communicationRoutes)
+app.use('/api/settings', settingsRoutes)
 
 app.get('/api/dashboard', async (req, res) => {
   try {
