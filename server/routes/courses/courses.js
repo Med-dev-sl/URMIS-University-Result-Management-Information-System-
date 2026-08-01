@@ -1,25 +1,21 @@
 import { Router } from 'express'
-import { getAll, getOne, runSql } from '../db.js'
+import prisma from '../prisma.js'
 
 const router = Router()
 
 router.get('/', async (req, res) => {
   try {
-    const { department_id } = req.query
-    const params = []
-    let query = `
-      SELECT id, course_code, course_name, credit_hours, department_id
-      FROM courses
-    `
+    const where = {}
 
-    if (department_id) {
-      query += ' WHERE department_id = ?'
-      params.push(department_id)
+    if (req.query.department_id) {
+      where.departmentId = Number(req.query.department_id)
     }
 
-    query += ' ORDER BY id DESC'
+    const courses = await prisma.course.findMany({
+      where,
+      orderBy: { id: 'desc' },
+    })
 
-    const courses = await getAll(query, params)
     res.json(courses)
   } catch (error) {
     console.error('Failed to fetch courses:', error)
@@ -35,18 +31,27 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Course code, name, and department_id are required.' })
     }
 
-    const department = await getOne('SELECT id FROM departments WHERE id = ?', [department_id])
+    const department = await prisma.department.findUnique({
+      where: { id: Number(department_id) },
+      select: { id: true },
+    })
+
     if (!department) {
       return res.status(404).json({ message: 'Department not found.' })
     }
 
-    const institution = await getOne('SELECT id FROM institutions ORDER BY id ASC LIMIT 1')
-    const result = await runSql(
-      'INSERT INTO courses (institution_id, department_id, course_code, course_name, credit_hours) VALUES (?, ?, ?, ?, ?)',
-      [institution?.id || 1, department_id, course_code, course_name, credit_hours || 3],
-    )
+    const institution = await prisma.institution.findFirst({ orderBy: { id: 'asc' } })
 
-    const createdCourse = await getOne('SELECT id, course_code, course_name, credit_hours, department_id FROM courses WHERE id = ?', [result.id])
+    const createdCourse = await prisma.course.create({
+      data: {
+        institutionId: institution?.id ?? 1,
+        departmentId: department.id,
+        course_code,
+        course_name,
+        credit_hours: Number(credit_hours) || 3,
+      },
+    })
+
     res.status(201).json(createdCourse)
   } catch (error) {
     console.error('Failed to create course:', error)

@@ -1,27 +1,30 @@
 import { Router } from 'express'
-import { getAll, getOne, runSql } from '../db.js'
+import prisma from '../prisma.js'
 
 const router = Router()
 
 router.get('/', async (req, res) => {
   try {
-    const { faculty_id } = req.query
-    const params = []
-    let query = `
-      SELECT d.id, d.name, d.faculty_id, f.name AS faculty_name
-      FROM departments d
-      LEFT JOIN faculties f ON f.id = d.faculty_id
-    `
+    const where = {}
 
-    if (faculty_id) {
-      query += ' WHERE d.faculty_id = ?'
-      params.push(faculty_id)
+    if (req.query.faculty_id) {
+      where.facultyId = Number(req.query.faculty_id)
     }
 
-    query += ' ORDER BY d.id DESC'
+    const departments = await prisma.department.findMany({
+      where,
+      orderBy: { id: 'desc' },
+      include: { faculty: { select: { name: true } } },
+    })
 
-    const departments = await getAll(query, params)
-    res.json(departments)
+    res.json(
+      departments.map((department) => ({
+        id: department.id,
+        name: department.name,
+        faculty_id: department.facultyId,
+        faculty_name: department.faculty?.name ?? null,
+      })),
+    )
   } catch (error) {
     console.error('Failed to fetch departments:', error)
     res.status(500).json({ message: 'Unable to load departments.' })
@@ -36,19 +39,30 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Department name and faculty_id are required.' })
     }
 
-    const faculty = await getOne('SELECT id FROM faculties WHERE id = ?', [faculty_id])
+    const faculty = await prisma.faculty.findUnique({
+      where: { id: Number(faculty_id) },
+      select: { id: true, institutionId: true },
+    })
+
     if (!faculty) {
       return res.status(404).json({ message: 'Faculty not found.' })
     }
 
-    const institution = await getOne('SELECT id FROM institutions ORDER BY id ASC LIMIT 1')
-    const result = await runSql(
-      'INSERT INTO departments (institution_id, faculty_id, name) VALUES (?, ?, ?)',
-      [institution?.id || 1, faculty_id, name],
-    )
+    const institution = await prisma.institution.findFirst({ orderBy: { id: 'asc' } })
 
-    const createdDepartment = await getOne('SELECT id, name, faculty_id FROM departments WHERE id = ?', [result.id])
-    res.status(201).json(createdDepartment)
+    const createdDepartment = await prisma.department.create({
+      data: {
+        institutionId: institution?.id ?? faculty.institutionId,
+        facultyId: faculty.id,
+        name,
+      },
+    })
+
+    res.status(201).json({
+      id: createdDepartment.id,
+      name: createdDepartment.name,
+      faculty_id: createdDepartment.facultyId,
+    })
   } catch (error) {
     console.error('Failed to create department:', error)
     res.status(500).json({ message: 'Unable to create department.' })

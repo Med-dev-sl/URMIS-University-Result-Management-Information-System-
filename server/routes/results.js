@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getAll, getOne, runSql } from '../db.js'
+import prisma from '../prisma.js'
 
 const router = Router()
 
@@ -13,16 +13,26 @@ const gradeForPercentage = (percentage) => {
 
 router.get('/', async (req, res) => {
   try {
-    const results = await getAll(`
-      SELECT r.id, r.assignment_score, r.exam_score, r.total_score, r.percentage, r.grade, r.pass_fail, r.academic_session,
-             s.full_name AS student_name, c.course_name
-      FROM results r
-      JOIN students s ON s.id = r.student_id
-      JOIN courses c ON c.id = r.course_id
-      ORDER BY r.id DESC
-    `)
+    const results = await prisma.result.findMany({
+      orderBy: { id: 'desc' },
+      include: {
+        student: { select: { full_name: true } },
+        course: { select: { course_name: true } },
+      },
+    })
 
-    res.json(results)
+    res.json(results.map((r) => ({
+      id: r.id,
+      assignment_score: r.assignment_score,
+      exam_score: r.exam_score,
+      total_score: r.total_score,
+      percentage: r.percentage,
+      grade: r.grade,
+      pass_fail: r.pass_fail,
+      academic_session: r.academic_session,
+      student_name: r.student.full_name,
+      course_name: r.course.course_name,
+    })))
   } catch (error) {
     console.error('Failed to fetch results:', error)
     res.status(500).json({ message: 'Unable to load results.' })
@@ -37,8 +47,15 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'student_id, course_id, assignment_score, exam_score, and academic_session are required.' })
     }
 
-    const student = await getOne('SELECT id, institution_id FROM students WHERE id = ?', [student_id])
-    const course = await getOne('SELECT id, institution_id FROM courses WHERE id = ?', [course_id])
+    const student = await prisma.student.findUnique({
+      where: { id: Number(student_id) },
+      select: { id: true, institutionId: true },
+    })
+
+    const course = await prisma.course.findUnique({
+      where: { id: Number(course_id) },
+      select: { id: true, institutionId: true },
+    })
 
     if (!student || !course) {
       return res.status(404).json({ message: 'Student or course not found.' })
@@ -49,23 +66,37 @@ router.post('/', async (req, res) => {
     const grade = gradeForPercentage(percentage)
     const pass_fail = percentage >= 60 ? 'PASS' : 'FAIL'
 
-    const result = await runSql(
-      `INSERT INTO results (institution_id, student_id, course_id, assignment_score, exam_score, total_score, percentage, grade, pass_fail, academic_session)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [student.institution_id, student.id, course.id, assignment_score, exam_score, totalScore, percentage, grade, pass_fail, academic_session],
-    )
+    const result = await prisma.result.create({
+      data: {
+        institutionId: student.institutionId,
+        studentId: student.id,
+        courseId: course.id,
+        assignment_score: Number(assignment_score),
+        exam_score: Number(exam_score),
+        total_score: totalScore,
+        percentage,
+        grade,
+        pass_fail,
+        academic_session,
+      },
+      include: {
+        student: { select: { full_name: true } },
+        course: { select: { course_name: true } },
+      },
+    })
 
-    const createdResult = await getOne(
-      `SELECT r.id, r.assignment_score, r.exam_score, r.total_score, r.percentage, r.grade, r.pass_fail, r.academic_session,
-              s.full_name AS student_name, c.course_name
-       FROM results r
-       JOIN students s ON s.id = r.student_id
-       JOIN courses c ON c.id = r.course_id
-       WHERE r.id = ?`,
-      [result.id],
-    )
-
-    res.status(201).json(createdResult)
+    res.status(201).json({
+      id: result.id,
+      assignment_score: result.assignment_score,
+      exam_score: result.exam_score,
+      total_score: result.total_score,
+      percentage: result.percentage,
+      grade: result.grade,
+      pass_fail: result.pass_fail,
+      academic_session: result.academic_session,
+      student_name: result.student.full_name,
+      course_name: result.course.course_name,
+    })
   } catch (error) {
     console.error('Failed to create result:', error)
     res.status(500).json({ message: 'Unable to create result.' })

@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Mirror of current SQLite schema (initial)
+model Institution {
+  id           Int      @id @default(autoincrement())
+  name         String
+  address      String?
+  contact_email String?
+  created_at   DateTime @default(now())
+  users        User[]
+  faculties    Faculty[]
+  departments  Department[]
+  students     Student[]
+  courses      Course[]
+  modules      Module[]
+  results      Result[]
+}
+
+model User {
+  id            Int     @id @default(autoincrement())
+  institutionId Int?
+  full_name     String
+  email         String  @unique
+  password_hash String
+  refresh_token String?
+  role          String  @default("admin")
+  created_at    DateTime @default(now())
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+}
+
+model Faculty {
+  id            Int     @id @default(autoincrement())
+  institutionId Int
+  name          String
+  created_at    DateTime @default(now())
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  departments   Department[]
+}
+
+model Department {
+  id            Int     @id @default(autoincrement())
+  institutionId Int
+  facultyId     Int?
+  name          String
+  created_at    DateTime @default(now())
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  faculty       Faculty? @relation(fields: [facultyId], references: [id])
+  students      Student[]
+  courses       Course[]
+}
+
+model Student {
+  id            Int     @id @default(autoincrement())
+  institutionId Int
+  student_id    String
+  full_name     String
+  departmentId  Int?
+  semester      String?
+  enrollment_year String?
+  created_at    DateTime @default(now())
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  department    Department? @relation(fields: [departmentId], references: [id])
+  results       Result[]
+}
+
+model Course {
+  id            Int     @id @default(autoincrement())
+  institutionId Int
+  departmentId  Int?
+  course_code   String
+  course_name   String
+  credit_hours  Int     @default(3)
+  created_at    DateTime @default(now())
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  department    Department? @relation(fields: [departmentId], references: [id])
+  modules       Module[]
+  results       Result[]
+}
+
+model Module {
+  id            Int     @id @default(autoincrement())
+  institutionId Int
+  courseId      Int
+  module_code   String
+  module_name   String
+  credit_hours  Int     @default(1)
+  description   String?
+  created_at    DateTime @default(now())
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  course        Course   @relation(fields: [courseId], references: [id])
+}
+
+model Result {
+  id            Int     @id @default(autoincrement())
+  institutionId Int
+  studentId     Int
+  courseId      Int
+  assignment_score Float @default(0)
+  exam_score     Float  @default(0)
+  total_score    Float  @default(0)
+  percentage     Float  @default(0)
+  grade          String?
+  pass_fail      String?
+  academic_session String?
+  created_at     DateTime @default(now())
+  institution    Institution @relation(fields: [institutionId], references: [id])
+  student        Student     @relation(fields: [studentId], references: [id])
+  course         Course      @relation(fields: [courseId], references: [id])
+}

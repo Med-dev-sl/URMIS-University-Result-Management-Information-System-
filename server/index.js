@@ -2,7 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 
-import { getAll, getOne, initializeDatabase, runSql } from './db.js'
+import bcrypt from 'bcryptjs'
+import prisma from './prisma.js'
 import healthRoutes from './routes/health.js'
 import studentsRoutes from './routes/students.js'
 import resultsRoutes from './routes/results.js'
@@ -28,88 +29,94 @@ const app = express()
 const port = Number(process.env.PORT || 5000)
 
 const seedDemoData = async () => {
-  const institutionCount = await getOne('SELECT COUNT(*) AS count FROM institutions')
+  const institutionCount = await prisma.institution.count()
 
-  if (institutionCount.count > 0) {
+  if (institutionCount > 0) {
     return
   }
 
-  const institution = await runSql(
-    'INSERT INTO institutions (name, address, contact_email) VALUES (?, ?, ?)',
-    ['Greenfield University', '12 Learning Avenue, Lagos', 'admin@greenfield.edu'],
-  )
+  const institution = await prisma.institution.create({
+    data: {
+      name: 'Greenfield University',
+      address: '12 Learning Avenue, Lagos',
+      contact_email: 'admin@greenfield.edu',
+      users: {
+        create: {
+          full_name: 'Aisha Bello',
+          email: 'admin@greenfield.edu',
+          password_hash: await bcrypt.hash('Admin@123', 10),
+          role: 'admin',
+        },
+      },
+      faculties: {
+        create: [
+          {
+            name: 'Science & Technology',
+            departments: {
+              create: [
+                {
+                  name: 'Computer Science',
+                  students: {
+                    create: [
+                      { student_id: 'CS-2024-001', full_name: 'Daniel Adebayo', semester: '400 Level', enrollment_year: '2024' },
+                      { student_id: 'CS-2024-002', full_name: 'Grace Okafor', semester: '400 Level', enrollment_year: '2024' },
+                      { student_id: 'CS-2024-003', full_name: 'Emmanuel Nwosu', semester: '300 Level', enrollment_year: '2023' },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+          {
+            name: 'Business & Management',
+            departments: {
+              create: [
+                {
+                  name: 'Business Administration',
+                  students: {
+                    create: [
+                      { student_id: 'BA-2024-001', full_name: 'Fatima Yusuf', semester: '200 Level', enrollment_year: '2024' },
+                      { student_id: 'BA-2024-002', full_name: 'Michael Johnson', semester: '200 Level', enrollment_year: '2024' },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    include: {
+      faculties: {
+        include: {
+          departments: {
+            include: { students: true },
+          },
+        },
+      },
+    },
+  })
 
-  await runSql(
-    'INSERT INTO users (institution_id, full_name, email, password_hash, role) VALUES (?, ?, ?, ?, ?)',
-    [institution.id, 'Aisha Bello', 'admin@greenfield.edu', 'demo-password-hash', 'admin'],
-  )
+  const computerScienceDepartment = institution.faculties[0].departments[0]
+  const businessAdminDepartment = institution.faculties[1].departments[0]
 
-  const faculties = [
-    { name: 'Science & Technology' },
-    { name: 'Business & Management' },
-  ]
+  await prisma.course.createMany({
+    data: [
+      { institutionId: institution.id, departmentId: computerScienceDepartment.id, course_code: 'CSC401', course_name: 'Software Engineering', credit_hours: 3 },
+      { institutionId: institution.id, departmentId: computerScienceDepartment.id, course_code: 'CSC402', course_name: 'Database Systems', credit_hours: 3 },
+      { institutionId: institution.id, departmentId: businessAdminDepartment.id, course_code: 'MGT301', course_name: 'Strategic Management', credit_hours: 2 },
+      { institutionId: institution.id, departmentId: businessAdminDepartment.id, course_code: 'MGT302', course_name: 'Financial Reporting', credit_hours: 3 },
+    ],
+  })
 
-  const facultyIds = []
+  const savedCourses = await prisma.course.findMany({
+    where: { institutionId: institution.id },
+    orderBy: { id: 'asc' },
+  })
 
-  for (const faculty of faculties) {
-    const result = await runSql(
-      'INSERT INTO faculties (institution_id, name) VALUES (?, ?)',
-      [institution.id, faculty.name],
-    )
-    facultyIds.push(result.id)
-  }
+  const studentRecords = await prisma.student.findMany({ where: { institutionId: institution.id }, orderBy: { id: 'asc' } })
 
-  const departments = [
-    { name: 'Computer Science', faculty_id: facultyIds[0] },
-    { name: 'Business Administration', faculty_id: facultyIds[1] },
-  ]
-
-  const departmentIds = []
-
-  for (const department of departments) {
-    const result = await runSql(
-      'INSERT INTO departments (institution_id, faculty_id, name) VALUES (?, ?, ?)',
-      [institution.id, department.faculty_id, department.name],
-    )
-    departmentIds.push(result.id)
-  }
-
-  const students = [
-    { student_id: 'CS-2024-001', full_name: 'Daniel Adebayo', department_id: departmentIds[0], semester: '400 Level', enrollment_year: '2024' },
-    { student_id: 'CS-2024-002', full_name: 'Grace Okafor', department_id: departmentIds[0], semester: '400 Level', enrollment_year: '2024' },
-    { student_id: 'CS-2024-003', full_name: 'Emmanuel Nwosu', department_id: departmentIds[0], semester: '300 Level', enrollment_year: '2023' },
-    { student_id: 'BA-2024-001', full_name: 'Fatima Yusuf', department_id: departmentIds[1], semester: '200 Level', enrollment_year: '2024' },
-    { student_id: 'BA-2024-002', full_name: 'Michael Johnson', department_id: departmentIds[1], semester: '200 Level', enrollment_year: '2024' },
-  ]
-
-  const studentIds = []
-
-  for (const student of students) {
-    const result = await runSql(
-      'INSERT INTO students (institution_id, student_id, full_name, department_id, semester, enrollment_year) VALUES (?, ?, ?, ?, ?, ?)',
-      [institution.id, student.student_id, student.full_name, student.department_id, student.semester, student.enrollment_year],
-    )
-    studentIds.push(result.id)
-  }
-
-  const courses = [
-    { course_code: 'CSC401', course_name: 'Software Engineering', credit_hours: 3, department_id: departmentIds[0] },
-    { course_code: 'CSC402', course_name: 'Database Systems', credit_hours: 3, department_id: departmentIds[0] },
-    { course_code: 'MGT301', course_name: 'Strategic Management', credit_hours: 2, department_id: departmentIds[1] },
-    { course_code: 'MGT302', course_name: 'Financial Reporting', credit_hours: 3, department_id: departmentIds[1] },
-  ]
-
-  const courseIds = []
-
-  for (const course of courses) {
-    const result = await runSql(
-      'INSERT INTO courses (institution_id, department_id, course_code, course_name, credit_hours) VALUES (?, ?, ?, ?, ?)',
-      [institution.id, course.department_id, course.course_code, course.course_name, course.credit_hours],
-    )
-    courseIds.push(result.id)
-  }
-
-  const modules = [
+  const moduleData = [
     { course_index: 0, module_code: 'CSC401-1', module_name: 'Requirements Engineering' },
     { course_index: 0, module_code: 'CSC401-2', module_name: 'Software Design Patterns' },
     { course_index: 1, module_code: 'CSC402-1', module_name: 'Relational Database Design' },
@@ -120,27 +127,39 @@ const seedDemoData = async () => {
     { course_index: 3, module_code: 'MGT302-2', module_name: 'Budgeting & Forecasting' },
   ]
 
-  for (const module of modules) {
-    await runSql(
-      'INSERT INTO modules (institution_id, course_id, module_code, module_name, credit_hours, description) VALUES (?, ?, ?, ?, ?, ?)',
-      [institution.id, courseIds[module.course_index], module.module_code, module.module_name, 1, `${module.module_name} description`],
-    )
-  }
+  await prisma.module.createMany({
+    data: moduleData.map((module) => ({
+      institutionId: institution.id,
+      courseId: savedCourses[module.course_index].id,
+      module_code: module.module_code,
+      module_name: module.module_name,
+      credit_hours: 1,
+      description: `${module.module_name} description`,
+    })),
+  })
 
   const resultSeed = [
-    { student_id: studentIds[0], course_id: courseIds[0], assignment_score: 88, exam_score: 91, percentage: 90, grade: 'A', pass_fail: 'PASS' },
-    { student_id: studentIds[1], course_id: courseIds[1], assignment_score: 76, exam_score: 81, percentage: 79, grade: 'C', pass_fail: 'PASS' },
-    { student_id: studentIds[2], course_id: courseIds[0], assignment_score: 64, exam_score: 72, percentage: 68, grade: 'D', pass_fail: 'PASS' },
-    { student_id: studentIds[3], course_id: courseIds[2], assignment_score: 80, exam_score: 84, percentage: 82, grade: 'B', pass_fail: 'PASS' },
-    { student_id: studentIds[4], course_id: courseIds[3], assignment_score: 58, exam_score: 66, percentage: 62, grade: 'D', pass_fail: 'PASS' },
+    { student_index: 0, course_index: 0, assignment_score: 88, exam_score: 91, percentage: 90, grade: 'A', pass_fail: 'PASS' },
+    { student_index: 1, course_index: 1, assignment_score: 76, exam_score: 81, percentage: 79, grade: 'C', pass_fail: 'PASS' },
+    { student_index: 2, course_index: 0, assignment_score: 64, exam_score: 72, percentage: 68, grade: 'D', pass_fail: 'PASS' },
+    { student_index: 3, course_index: 2, assignment_score: 80, exam_score: 84, percentage: 82, grade: 'B', pass_fail: 'PASS' },
+    { student_index: 4, course_index: 3, assignment_score: 58, exam_score: 66, percentage: 62, grade: 'D', pass_fail: 'PASS' },
   ]
 
-  for (const result of resultSeed) {
-    await runSql(
-      'INSERT INTO results (institution_id, student_id, course_id, assignment_score, exam_score, total_score, percentage, grade, pass_fail, academic_session) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [institution.id, result.student_id, result.course_id, result.assignment_score, result.exam_score, result.assignment_score + result.exam_score, result.percentage, result.grade, result.pass_fail, '2024/2025'],
-    )
-  }
+  await prisma.result.createMany({
+    data: resultSeed.map((result) => ({
+      institutionId: institution.id,
+      studentId: studentRecords[result.student_index].id,
+      courseId: savedCourses[result.course_index].id,
+      assignment_score: result.assignment_score,
+      exam_score: result.exam_score,
+      total_score: result.assignment_score + result.exam_score,
+      percentage: result.percentage,
+      grade: result.grade,
+      pass_fail: result.pass_fail,
+      academic_session: '2024/2025',
+    })),
+  })
 }
 
 app.use(
@@ -180,37 +199,47 @@ app.use('/api/settings', settingsRoutes)
 
 app.get('/api/dashboard', async (req, res) => {
   try {
-    const totalStudents = await getOne('SELECT COUNT(*) AS count FROM students')
-    const totalCourses = await getOne('SELECT COUNT(*) AS count FROM courses')
-    const totalResults = await getOne('SELECT COUNT(*) AS count FROM results')
-    const avgPerformance = await getOne('SELECT AVG(percentage) AS average FROM results')
+    const totalStudents = await prisma.student.count()
+    const totalCourses = await prisma.course.count()
+    const totalResults = await prisma.result.count()
+    const avgPerformance = await prisma.result.aggregate({ _avg: { percentage: true } })
 
-    const students = await getAll(`
-      SELECT s.id, s.student_id, s.full_name, s.semester, d.name AS department_name
-      FROM students s
-      LEFT JOIN departments d ON d.id = s.department_id
-      ORDER BY s.id DESC
-      LIMIT 5
-    `)
+    const students = await prisma.student.findMany({
+      orderBy: { id: 'desc' },
+      take: 5,
+      include: { department: { select: { name: true } } },
+    })
 
-    const recentResults = await getAll(`
-      SELECT r.id, r.percentage, r.grade, s.full_name AS student_name, c.course_name
-      FROM results r
-      JOIN students s ON s.id = r.student_id
-      JOIN courses c ON c.id = r.course_id
-      ORDER BY r.id DESC
-      LIMIT 5
-    `)
+    const recentResults = await prisma.result.findMany({
+      orderBy: { id: 'desc' },
+      take: 5,
+      include: {
+        student: { select: { full_name: true } },
+        course: { select: { course_name: true } },
+      },
+    })
 
     res.json({
       stats: [
-        { label: 'Students', value: totalStudents.count, trend: '+8.2%' },
-        { label: 'Courses', value: totalCourses.count, trend: '+4.1%' },
-        { label: 'Results', value: totalResults.count, trend: '+12.4%' },
-        { label: 'Avg', value: `${Math.round(avgPerformance.average || 0)}%`, trend: '+2.6%' },
+        { label: 'Students', value: totalStudents, trend: '+8.2%' },
+        { label: 'Courses', value: totalCourses, trend: '+4.1%' },
+        { label: 'Results', value: totalResults, trend: '+12.4%' },
+        { label: 'Avg', value: `${Math.round(avgPerformance._avg.percentage || 0)}%`, trend: '+2.6%' },
       ],
-      students,
-      recentResults,
+      students: students.map((student) => ({
+        id: student.id,
+        student_id: student.student_id,
+        full_name: student.full_name,
+        semester: student.semester,
+        department_name: student.department?.name ?? null,
+      })),
+      recentResults: recentResults.map((result) => ({
+        id: result.id,
+        percentage: result.percentage,
+        grade: result.grade,
+        student_name: result.student.full_name,
+        course_name: result.course.course_name,
+      })),
     })
   } catch (error) {
     console.error('Dashboard query failed:', error)
@@ -218,17 +247,17 @@ app.get('/api/dashboard', async (req, res) => {
   }
 })
 
-initializeDatabase()
-  .then(async () => {
-    await seedDemoData()
+try {
+  await prisma.$connect()
 
-    app.listen(port, () => {
-      console.log(`URMIS API running on http://localhost:${port}`)
-    })
+  await seedDemoData()
+
+  app.listen(port, () => {
+    console.log(`URMIS API running on http://localhost:${port}`)
   })
-  .catch((error) => {
-    console.error('Failed to initialize database:', error)
-    process.exit(1)
-  })
+} catch (error) {
+  console.error('Failed to start app:', error)
+  process.exit(1)
+}
 
 export default app
