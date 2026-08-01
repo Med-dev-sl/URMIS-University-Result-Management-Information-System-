@@ -1,9 +1,13 @@
 export function sign(payload) {
-  // placeholder: return dummy token
+  if (payload == null) {
+    throw new Error('JWT placeholder sign requires payload')
+  }
   return 'token-placeholder'
 }
 
 export function verify(token) {
-  // placeholder: return null or decoded payload
+  if (token == null) {
+    throw new Error('JWT placeholder verify requires token')
+  }
   return null
 }

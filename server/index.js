@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import path from 'path'
 
 import bcrypt from 'bcryptjs'
 import prisma from './prisma.js'
@@ -10,6 +11,7 @@ import resultsRoutes from './routes/results.js'
 import coursesRoutes from './routes/courses/courses.js'
 import departmentsRoutes from './routes/institution/departments.js'
 import facultiesRoutes from './routes/institution/faculties.js'
+import institutionRoutes from './routes/institution/index.js'
 import modulesRoutes from './routes/courses/modules.js'
 import platformRoutes from './routes/platform/index.js'
 import authRoutes from './routes/auth/index.js'
@@ -19,9 +21,12 @@ import assessmentsRoutes from './routes/assessments/index.js'
 import examinationRoutes from './routes/examination/index.js'
 import approvalRoutes from './routes/approval/index.js'
 import documentsRoutes from './routes/documents/index.js'
+import usersRoutes from './routes/users.js'
+import academicsRoutes from './routes/academics.js'
 import reportsRoutes from './routes/reports/index.js'
 import communicationRoutes from './routes/communication/index.js'
 import settingsRoutes from './routes/settings/index.js'
+import { auditLogger } from './shared/security/auditMiddleware.js'
 
 dotenv.config()
 
@@ -48,73 +53,57 @@ const seedDemoData = async () => {
           role: 'admin',
         },
       },
-      faculties: {
-        create: [
-          {
-            name: 'Science & Technology',
-            departments: {
-              create: [
-                {
-                  name: 'Computer Science',
-                  students: {
-                    create: [
-                      { student_id: 'CS-2024-001', full_name: 'Daniel Adebayo', semester: '400 Level', enrollment_year: '2024' },
-                      { student_id: 'CS-2024-002', full_name: 'Grace Okafor', semester: '400 Level', enrollment_year: '2024' },
-                      { student_id: 'CS-2024-003', full_name: 'Emmanuel Nwosu', semester: '300 Level', enrollment_year: '2023' },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-          {
-            name: 'Business & Management',
-            departments: {
-              create: [
-                {
-                  name: 'Business Administration',
-                  students: {
-                    create: [
-                      { student_id: 'BA-2024-001', full_name: 'Fatima Yusuf', semester: '200 Level', enrollment_year: '2024' },
-                      { student_id: 'BA-2024-002', full_name: 'Michael Johnson', semester: '200 Level', enrollment_year: '2024' },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    include: {
-      faculties: {
-        include: {
-          departments: {
-            include: { students: true },
-          },
-        },
-      },
     },
   })
 
-  const computerScienceDepartment = institution.faculties[0].departments[0]
-  const businessAdminDepartment = institution.faculties[1].departments[0]
-
-  await prisma.course.createMany({
-    data: [
-      { institutionId: institution.id, departmentId: computerScienceDepartment.id, course_code: 'CSC401', course_name: 'Software Engineering', credit_hours: 3 },
-      { institutionId: institution.id, departmentId: computerScienceDepartment.id, course_code: 'CSC402', course_name: 'Database Systems', credit_hours: 3 },
-      { institutionId: institution.id, departmentId: businessAdminDepartment.id, course_code: 'MGT301', course_name: 'Strategic Management', credit_hours: 2 },
-      { institutionId: institution.id, departmentId: businessAdminDepartment.id, course_code: 'MGT302', course_name: 'Financial Reporting', credit_hours: 3 },
-    ],
+  const scienceFaculty = await prisma.faculty.create({
+    data: {
+      institutionId: institution.id,
+      name: 'Science & Technology',
+    },
   })
 
-  const savedCourses = await prisma.course.findMany({
-    where: { institutionId: institution.id },
-    orderBy: { id: 'asc' },
+  const businessFaculty = await prisma.faculty.create({
+    data: {
+      institutionId: institution.id,
+      name: 'Business & Management',
+    },
   })
 
-  const studentRecords = await prisma.student.findMany({ where: { institutionId: institution.id }, orderBy: { id: 'asc' } })
+  const computerScienceDepartment = await prisma.department.create({
+    data: {
+      institutionId: institution.id,
+      facultyId: scienceFaculty.id,
+      name: 'Computer Science',
+    },
+  })
+
+  const businessAdminDepartment = await prisma.department.create({
+    data: {
+      institutionId: institution.id,
+      facultyId: businessFaculty.id,
+      name: 'Business Administration',
+    },
+  })
+
+  const studentRecordsData = [
+    { institutionId: institution.id, departmentId: computerScienceDepartment.id, student_id: 'CS-2024-001', full_name: 'Daniel Adebayo', semester: '400 Level', enrollment_year: '2024' },
+    { institutionId: institution.id, departmentId: computerScienceDepartment.id, student_id: 'CS-2024-002', full_name: 'Grace Okafor', semester: '400 Level', enrollment_year: '2024' },
+    { institutionId: institution.id, departmentId: computerScienceDepartment.id, student_id: 'CS-2024-003', full_name: 'Emmanuel Nwosu', semester: '300 Level', enrollment_year: '2023' },
+    { institutionId: institution.id, departmentId: businessAdminDepartment.id, student_id: 'BA-2024-001', full_name: 'Fatima Yusuf', semester: '200 Level', enrollment_year: '2024' },
+    { institutionId: institution.id, departmentId: businessAdminDepartment.id, student_id: 'BA-2024-002', full_name: 'Michael Johnson', semester: '200 Level', enrollment_year: '2024' },
+  ]
+
+  const studentRecords = await Promise.all(studentRecordsData.map((student) => prisma.student.create({ data: student })))
+
+  const courseData = [
+    { institutionId: institution.id, departmentId: computerScienceDepartment.id, course_code: 'CSC401', course_name: 'Software Engineering', credit_hours: 3 },
+    { institutionId: institution.id, departmentId: computerScienceDepartment.id, course_code: 'CSC402', course_name: 'Database Systems', credit_hours: 3 },
+    { institutionId: institution.id, departmentId: businessAdminDepartment.id, course_code: 'MGT301', course_name: 'Strategic Management', credit_hours: 2 },
+    { institutionId: institution.id, departmentId: businessAdminDepartment.id, course_code: 'MGT302', course_name: 'Financial Reporting', credit_hours: 3 },
+  ]
+
+  const savedCourses = await Promise.all(courseData.map((course) => prisma.course.create({ data: course })))
 
   const moduleData = [
     { course_index: 0, module_code: 'CSC401-1', module_name: 'Requirements Engineering' },
@@ -127,16 +116,16 @@ const seedDemoData = async () => {
     { course_index: 3, module_code: 'MGT302-2', module_name: 'Budgeting & Forecasting' },
   ]
 
-  await prisma.module.createMany({
-    data: moduleData.map((module) => ({
+  await Promise.all(moduleData.map((module) => prisma.module.create({
+    data: {
       institutionId: institution.id,
       courseId: savedCourses[module.course_index].id,
       module_code: module.module_code,
       module_name: module.module_name,
       credit_hours: 1,
       description: `${module.module_name} description`,
-    })),
-  })
+    },
+  })))
 
   const resultSeed = [
     { student_index: 0, course_index: 0, assignment_score: 88, exam_score: 91, percentage: 90, grade: 'A', pass_fail: 'PASS' },
@@ -169,6 +158,8 @@ app.use(
   }),
 )
 app.use(express.json())
+app.use('/uploads/documents', express.static(path.resolve(process.cwd(), 'uploads', 'documents')))
+app.use(auditLogger('http-request'))
 
 app.get('/api', (req, res) => {
   res.json({
@@ -184,9 +175,12 @@ app.use('/api/results', resultsRoutes)
 app.use('/api/courses', coursesRoutes)
 app.use('/api/departments', departmentsRoutes)
 app.use('/api/faculties', facultiesRoutes)
+app.use('/api/institution', institutionRoutes)
 app.use('/api/modules', modulesRoutes)
 app.use('/api/platform', platformRoutes)
 app.use('/api/auth', authRoutes)
+app.use('/api/users', usersRoutes)
+app.use('/api/academics', academicsRoutes)
 app.use('/api/registration', registrationRoutes)
 app.use('/api/staff', staffRoutes)
 app.use('/api/assessments', assessmentsRoutes)

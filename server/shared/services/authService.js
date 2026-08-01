@@ -117,7 +117,7 @@ export default {
       }
 
       return normalizeUser(user)
-    } catch (error) {
+    } catch {
       return null
     }
   },

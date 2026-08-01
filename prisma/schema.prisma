@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 // Mirror of current SQLite schema (initial)
@@ -20,6 +21,14 @@ model Institution {
   courses      Course[]
   modules      Module[]
   results      Result[]
+  transcriptRequests TranscriptRequest[]
+  transcripts  Transcript[]
+  notifications Notification[]
+  auditLogs    AuditLog[]
+  approvalWorkflows ApprovalWorkflow[]
+  approvalTasks ApprovalTask[]
+  uploadedDocuments UploadedDocument[]
+  institutionSettings InstitutionSetting[]
 }
 
 model User {
@@ -32,6 +41,16 @@ model User {
   role          String  @default("admin")
   created_at    DateTime @default(now())
   institution   Institution? @relation(fields: [institutionId], references: [id])
+  transcriptRequests TranscriptRequest[]  @relation("TranscriptRequester")
+  generatedTranscripts Transcript[]      @relation("TranscriptGenerator")
+  sentNotifications Notification[]        @relation("NotificationSender")
+  receivedNotifications Notification[]    @relation("NotificationRecipient")
+  notificationReads NotificationRead[]
+  approvalHistory ApprovalHistory[]
+  approvalComments ApprovalComment[]
+  publicationLogs PublicationLog[]
+  uploadedDocuments UploadedDocument[]  @relation("UploaderDocuments")
+  auditLogs AuditLog[]
 }
 
 model Faculty {
@@ -67,6 +86,8 @@ model Student {
   institution   Institution @relation(fields: [institutionId], references: [id])
   department    Department? @relation(fields: [departmentId], references: [id])
   results       Result[]
+  transcriptRequests TranscriptRequest[]
+  transcripts    Transcript[]
 }
 
 model Course {
@@ -112,4 +133,202 @@ model Result {
   institution    Institution @relation(fields: [institutionId], references: [id])
   student        Student     @relation(fields: [studentId], references: [id])
   course         Course      @relation(fields: [courseId], references: [id])
+}
+
+model TranscriptRequest {
+  id               Int       @id @default(autoincrement())
+  institutionId    Int
+  studentId        Int
+  requested_by     Int
+  purpose          String
+  delivery_address String?
+  status           String    @default("pending")
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  institution      Institution @relation(fields: [institutionId], references: [id])
+  student          Student     @relation(fields: [studentId], references: [id])
+  requester        User        @relation("TranscriptRequester", fields: [requested_by], references: [id])
+}
+
+model Transcript {
+  id               Int       @id @default(autoincrement())
+  institutionId    Int
+  studentId        Int
+  generated_by     Int
+  academic_session String
+  content          String
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  institution      Institution @relation(fields: [institutionId], references: [id])
+  student          Student     @relation(fields: [studentId], references: [id])
+  generator        User        @relation("TranscriptGenerator", fields: [generated_by], references: [id])
+}
+
+model Notification {
+  id            Int             @id @default(autoincrement())
+  institutionId Int
+  senderId      Int
+  recipientId   Int?
+  title         String
+  message       String
+  category      String          @default("general")
+  channel       String          @default("in-app")
+  status        String          @default("active")
+  is_global     Boolean         @default(false)
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+
+  institution   Institution      @relation(fields: [institutionId], references: [id])
+  sender        User             @relation("NotificationSender", fields: [senderId], references: [id])
+  recipient     User?            @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  reads         NotificationRead[]
+}
+
+model NotificationRead {
+  id             Int          @id @default(autoincrement())
+  notificationId Int
+  userId         Int
+  read_at        DateTime     @default(now())
+
+  notification   Notification @relation(fields: [notificationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@unique([notificationId, userId], name: "notificationId_userId")
+}
+
+model UploadedDocument {
+  id            Int       @id @default(autoincrement())
+  institutionId Int
+  uploaded_by   Int
+  original_name String
+  stored_name   String
+  mime_type     String
+  size          Int
+  category      String    @default("general")
+  description   String?
+  path          String
+  url           String
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  uploader      User        @relation("UploaderDocuments", fields: [uploaded_by], references: [id])
+}
+
+model InstitutionSetting {
+  id            Int       @id @default(autoincrement())
+  institutionId Int
+  key           String
+  value         String
+  category      String    @default("general")
+  description   String?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  institution   Institution @relation(fields: [institutionId], references: [id])
+
+  @@unique([institutionId, key])
+}
+
+model ApprovalWorkflow {
+  id            Int             @id @default(autoincrement())
+  institutionId Int
+  name          String
+  description   String?
+  is_active     Boolean         @default(true)
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+
+  institution   Institution      @relation(fields: [institutionId], references: [id])
+  stages        ApprovalStage[]
+  tasks         ApprovalTask[]
+}
+
+model ApprovalStage {
+  id         Int              @id @default(autoincrement())
+  workflowId Int
+  name       String
+  role       String
+  stage_order Int
+  is_active  Boolean          @default(true)
+  created_at DateTime         @default(now())
+
+  workflow   ApprovalWorkflow @relation(fields: [workflowId], references: [id])
+  history    ApprovalHistory[]
+  tasks      ApprovalTask[]   @relation("CurrentStageTasks")
+}
+
+model ApprovalTask {
+  id             Int              @id @default(autoincrement())
+  workflowId     Int
+  institutionId  Int
+  target_type    String
+  target_id      Int
+  title          String
+  description    String?
+  status         String           @default("pending")
+  currentStageId Int?
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+
+  workflow       ApprovalWorkflow @relation(fields: [workflowId], references: [id])
+  currentStage   ApprovalStage?   @relation("CurrentStageTasks", fields: [currentStageId], references: [id])
+  history        ApprovalHistory[]
+  comments       ApprovalComment[]
+  publicationLogs PublicationLog[]
+  institution    Institution      @relation(fields: [institutionId], references: [id])
+}
+
+model ApprovalHistory {
+  id         Int           @id @default(autoincrement())
+  taskId     Int
+  stageId    Int?
+  actorId    Int
+  action     String
+  comment    String?
+  created_at DateTime      @default(now())
+
+  task       ApprovalTask  @relation(fields: [taskId], references: [id])
+  stage      ApprovalStage? @relation(fields: [stageId], references: [id])
+  actor      User          @relation(fields: [actorId], references: [id])
+}
+
+model ApprovalComment {
+  id         Int           @id @default(autoincrement())
+  taskId     Int
+  authorId   Int
+  message    String
+  created_at DateTime      @default(now())
+
+  task       ApprovalTask  @relation(fields: [taskId], references: [id])
+  author     User          @relation(fields: [authorId], references: [id])
+}
+
+model PublicationLog {
+  id           Int           @id @default(autoincrement())
+  taskId       Int
+  published_by Int
+  note         String?
+  created_at   DateTime      @default(now())
+
+  task         ApprovalTask  @relation(fields: [taskId], references: [id])
+  publishedBy  User          @relation(fields: [published_by], references: [id])
+}
+
+model AuditLog {
+  id            Int       @id @default(autoincrement())
+  institutionId Int?
+  userId        Int?
+  route         String
+  method        String
+  action        String
+  details       String?
+  ip            String?
+  user_agent    String?
+  created_at    DateTime  @default(now())
+
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+  user          User?        @relation(fields: [userId], references: [id])
 }
