@@ -1,37 +1,58 @@
-import jwt from 'jsonwebtoken'
+import authService from '../services/authService.js'
+import { attachUserContext, hasPermission, normalizeRoleName } from '../services/rbacService.js'
 
-const accessSecret = process.env.JWT_SECRET || 'urmis-access-secret'
-
-export function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization
-  if (!authHeader?.startsWith('Bearer ')) {
+export async function requireAuth(req, res, next) {
+  const token = authService.getTokenFromRequest(req, 'access')
+  if (!token) {
     return res.status(401).json({ message: 'Authorization token missing' })
   }
 
-  const token = authHeader.split(' ')[1]
-
   try {
-    const payload = jwt.verify(token, accessSecret)
-    req.user = {
-      id: payload.userId,
-      email: payload.email,
-      role: payload.role,
-      institutionId: payload.institutionId,
+    const payload = await authService.verifyAccessToken(token)
+    const user = await authService.getUserById(payload.userId)
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid or expired token' })
     }
+
+    const userContext = await attachUserContext(user)
+    if (userContext.isSuspended) {
+      return res.status(403).json({ message: 'Account suspended' })
+    }
+    if (userContext.isLocked) {
+      return res.status(403).json({ message: 'Account locked' })
+    }
+
+    req.user = userContext
     return next()
-  } catch {
-    return res.status(401).json({ message: 'Invalid or expired token' })
+  } catch (error) {
+    return res.status(401).json({ message: error.message || 'Invalid or expired token' })
   }
 }
 
 export function requireRole(...allowedRoles) {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ message: 'Unauthorized' })
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    const normalizedAllowed = allowedRoles.map(normalizeRoleName)
+    const normalizedRole = normalizeRoleName(req.user.role)
+    if (!normalizedAllowed.includes(normalizedRole)) {
       return res.status(403).json({ message: 'Forbidden: insufficient role' })
+    }
+
+    return next()
+  }
+}
+
+export function requirePermission(permission) {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' })
+    }
+
+    if (!hasPermission(req.user, permission)) {
+      return res.status(403).json({ message: 'Forbidden: insufficient permissions' })
     }
 
     return next()

@@ -221,6 +221,7 @@ async function main() {
           email: userData.email,
           password_hash: await bcrypt.hash(userData.password, 10),
           role: userData.role,
+          email_verified: true,
           updated_at: new Date(),
         },
       })

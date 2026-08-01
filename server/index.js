@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 import path from 'path'
 
 import bcrypt from 'bcryptjs'
-import prisma from './prisma.js'
+import prisma from './prisma-runtime.js'
 import healthRoutes from './routes/health.js'
 import studentsRoutes from './routes/students.js'
 import resultsRoutes from './routes/results.js'
@@ -26,6 +26,7 @@ import academicsRoutes from './routes/academics.js'
 import reportsRoutes from './routes/reports/index.js'
 import communicationRoutes from './routes/communication/index.js'
 import settingsRoutes from './routes/settings/index.js'
+import rolesRoutes from './routes/roles/index.js'
 import { auditLogger } from './shared/security/auditMiddleware.js'
 
 dotenv.config()
@@ -51,6 +52,7 @@ const seedDemoData = async () => {
           email: 'admin@greenfield.edu',
           password_hash: await bcrypt.hash('Admin@123', 10),
           role: 'admin',
+          updated_at: new Date(),
         },
       },
     },
@@ -135,8 +137,8 @@ const seedDemoData = async () => {
     { student_index: 4, course_index: 3, assignment_score: 58, exam_score: 66, percentage: 62, grade: 'D', pass_fail: 'PASS' },
   ]
 
-  await prisma.result.createMany({
-    data: resultSeed.map((result) => ({
+  await Promise.all(resultSeed.map((result) => prisma.result.create({
+    data: {
       institutionId: institution.id,
       studentId: studentRecords[result.student_index].id,
       courseId: savedCourses[result.course_index].id,
@@ -147,8 +149,8 @@ const seedDemoData = async () => {
       grade: result.grade,
       pass_fail: result.pass_fail,
       academic_session: '2024/2025',
-    })),
-  })
+    },
+  })))
 }
 
 app.use(
@@ -190,6 +192,7 @@ app.use('/api/documents', documentsRoutes)
 app.use('/api/reports', reportsRoutes)
 app.use('/api/communication', communicationRoutes)
 app.use('/api/settings', settingsRoutes)
+app.use('/api/roles', rolesRoutes)
 
 app.get('/api/dashboard', async (req, res) => {
   try {
@@ -244,7 +247,11 @@ app.get('/api/dashboard', async (req, res) => {
 try {
   await prisma.$connect()
 
-  await seedDemoData()
+  try {
+    await seedDemoData()
+  } catch (seedError) {
+    console.warn('Demo seeding skipped:', seedError.message)
+  }
 
   app.listen(port, () => {
     console.log(`URMIS API running on http://localhost:${port}`)

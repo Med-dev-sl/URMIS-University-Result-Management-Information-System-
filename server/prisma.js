@@ -27,6 +27,16 @@ const resolveDatabaseUrl = () => {
 }
 
 process.env.DATABASE_URL = resolveDatabaseUrl()
+process.env.PRISMA_SCHEMA_PATH = path.resolve(process.cwd(), 'prisma', 'schema.prisma')
+process.env.PRISMA_CLIENT_ENGINE_TYPE = 'library'
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+  log: ['error'],
+})
+
 export default prisma

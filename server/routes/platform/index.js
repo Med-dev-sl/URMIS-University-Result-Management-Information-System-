@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import auditLogsRoutes from './auditLogs.js'
+import platformSettingsRoutes from '../settings/platform.js'
 
 const router = Router()
 
@@ -8,5 +9,6 @@ router.get('/', (req, res) => {
 })
 
 router.use('/audit-logs', auditLogsRoutes)
+router.use('/settings', platformSettingsRoutes)
 
 export default router

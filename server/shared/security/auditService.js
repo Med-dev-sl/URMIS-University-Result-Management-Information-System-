@@ -1,4 +1,4 @@
-import prisma from '../../prisma.js'
+import prisma from '../../prisma-runtime.js'
 
 export async function createAuditLog({
   institutionId = null,
