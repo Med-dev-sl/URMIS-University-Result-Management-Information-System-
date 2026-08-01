@@ -99,6 +99,10 @@ function App() {
     setModalData({ visible: true, type: 'error', message })
   }, [])
 
+  const closeModal = useCallback(() => {
+    setModalData((current) => ({ ...current, visible: false }))
+  }, [])
+
   const loadDashboard = useCallback(async () => {
     setLoading(true)
     try {
@@ -396,6 +400,13 @@ function App() {
             if (isResults) loadResults()
             if (isInstitution) loadFaculties()
           }}
+        />
+
+        <Modal
+          visible={modalData.visible}
+          type={modalData.type}
+          message={modalData.message}
+          onClose={closeModal}
         />
 
         {loading ? (

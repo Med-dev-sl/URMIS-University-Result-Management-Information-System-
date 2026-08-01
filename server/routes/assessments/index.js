@@ -201,7 +201,7 @@ router.put('/:id', requireAuth, requireRole('lecturer', 'admin'), async (req, re
     }
 
     const { title, academicSession, semester, description, weights, scores } = req.body
-    const updated = await prisma.assessment.update({
+    await prisma.assessment.update({
       where: { id: assessmentId },
       data: {
         title: title ? String(title) : assessment.title,
