@@ -1,11 +1,40 @@
 import { Router } from 'express'
 import prisma from '../prisma.js'
+import { requireAuth, requireRole } from '../../shared/middlewares/auth.js'
 
 const router = Router()
 
-router.get('/', async (req, res) => {
+const resolveInstitutionId = async (req) => {
+  if (req.user.role === 'admin') {
+    if (req.user.institutionId) {
+      return req.user.institutionId
+    }
+
+    const institution = await prisma.institution.findFirst({ orderBy: { id: 'asc' }, select: { id: true } })
+    if (!institution) {
+      throw new Error('No institution is configured for admin operations.')
+    }
+
+    return institution.id
+  }
+
+  if (!req.user.institutionId) {
+    throw new Error('Tenant context is required for this operation.')
+  }
+
+  return req.user.institutionId
+}
+
+router.get('/', requireAuth, async (req, res) => {
   try {
+    const where = {}
+
+    if (req.user.role !== 'admin') {
+      where.institutionId = req.user.institutionId
+    }
+
     const faculties = await prisma.faculty.findMany({
+      where,
       orderBy: { id: 'desc' },
       include: { institution: { select: { name: true } } },
     })
@@ -23,7 +52,7 @@ router.get('/', async (req, res) => {
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, requireRole('admin', 'staff'), async (req, res) => {
   try {
     const { name } = req.body
 
@@ -31,11 +60,11 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Faculty name is required.' })
     }
 
-    const institution = await prisma.institution.findFirst({ orderBy: { id: 'asc' } })
+    const institutionId = await resolveInstitutionId(req)
 
     const createdFaculty = await prisma.faculty.create({
       data: {
-        institutionId: institution?.id ?? 1,
+        institutionId,
         name,
       },
     })

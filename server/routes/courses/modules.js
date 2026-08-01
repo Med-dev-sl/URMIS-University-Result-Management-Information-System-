@@ -1,12 +1,16 @@
 import { Router } from 'express'
 import prisma from '../prisma.js'
+import { requireAuth, requireRole } from '../../shared/middlewares/auth.js'
 
 const router = Router()
 
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     const where = {}
 
+    if (req.user.role !== 'admin') {
+      where.institutionId = req.user.institutionId
+    }
     if (req.query.course_id) {
       where.courseId = Number(req.query.course_id)
     }
@@ -36,7 +40,7 @@ router.get('/', async (req, res) => {
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, requireRole('admin', 'staff'), async (req, res) => {
   try {
     const { module_code, module_name, credit_hours, description, course_id } = req.body
 
@@ -53,11 +57,13 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ message: 'Course not found.' })
     }
 
-    const institution = await prisma.institution.findFirst({ orderBy: { id: 'asc' } })
+    if (req.user.role !== 'admin' && course.institutionId !== req.user.institutionId) {
+      return res.status(403).json({ message: 'Forbidden: course belongs to another institution.' })
+    }
 
     const createdModule = await prisma.module.create({
       data: {
-        institutionId: institution?.id ?? course.institutionId,
+        institutionId: course.institutionId,
         courseId: course.id,
         module_code,
         module_name,

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import prisma from '../prisma.js'
+import { requireAuth, requireRole } from '../shared/middlewares/auth.js'
 
 const router = Router()
 
@@ -11,9 +12,16 @@ const gradeForPercentage = (percentage) => {
   return 'F'
 }
 
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
+    const where = {}
+
+    if (req.user.role !== 'admin') {
+      where.institutionId = req.user.institutionId
+    }
+
     const results = await prisma.result.findMany({
+      where,
       orderBy: { id: 'desc' },
       include: {
         student: { select: { full_name: true } },
@@ -39,7 +47,7 @@ router.get('/', async (req, res) => {
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, requireRole('admin', 'staff'), async (req, res) => {
   try {
     const { student_id, course_id, assignment_score, exam_score, academic_session } = req.body
 
@@ -59,6 +67,14 @@ router.post('/', async (req, res) => {
 
     if (!student || !course) {
       return res.status(404).json({ message: 'Student or course not found.' })
+    }
+
+    if (req.user.role !== 'admin' && student.institutionId !== req.user.institutionId) {
+      return res.status(403).json({ message: 'Forbidden: student belongs to another institution.' })
+    }
+
+    if (req.user.role !== 'admin' && course.institutionId !== req.user.institutionId) {
+      return res.status(403).json({ message: 'Forbidden: course belongs to another institution.' })
     }
 
     const totalScore = Number(assignment_score) + Number(exam_score)

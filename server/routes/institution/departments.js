@@ -1,12 +1,16 @@
 import { Router } from 'express'
 import prisma from '../prisma.js'
+import { requireAuth, requireRole } from '../../shared/middlewares/auth.js'
 
 const router = Router()
 
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     const where = {}
 
+    if (req.user.role !== 'admin') {
+      where.institutionId = req.user.institutionId
+    }
     if (req.query.faculty_id) {
       where.facultyId = Number(req.query.faculty_id)
     }
@@ -31,7 +35,7 @@ router.get('/', async (req, res) => {
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, requireRole('admin', 'staff'), async (req, res) => {
   try {
     const { name, faculty_id } = req.body
 
@@ -48,11 +52,13 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ message: 'Faculty not found.' })
     }
 
-    const institution = await prisma.institution.findFirst({ orderBy: { id: 'asc' } })
+    if (req.user.role !== 'admin' && faculty.institutionId !== req.user.institutionId) {
+      return res.status(403).json({ message: 'Forbidden: faculty belongs to another institution.' })
+    }
 
     const createdDepartment = await prisma.department.create({
       data: {
-        institutionId: institution?.id ?? faculty.institutionId,
+        institutionId: faculty.institutionId,
         facultyId: faculty.id,
         name,
       },
