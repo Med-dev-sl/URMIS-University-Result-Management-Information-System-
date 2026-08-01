@@ -1,0 +1,151 @@
+openapi: 3.0.3
+info:
+  title: URMIS Backend API
+  version: 1.0.0
+  description: Backend API documentation for the URMIS university result management system.
+servers:
+  - url: http://localhost:5000
+paths:
+  /api:
+    get:
+      summary: Root API info
+      responses:
+        '200':
+          description: API metadata
+  /api/health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service status
+  /api/auth/login:
+    post:
+      summary: Authenticate a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Access and refresh tokens issued
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [full_name, email, password]
+              properties:
+                full_name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                institutionId:
+                  type: integer
+                role:
+                  type: string
+      responses:
+        '201':
+          description: User created
+  /api/auth/me:
+    get:
+      summary: Get current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+  /api/students:
+    get:
+      summary: List students
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Student list
+    post:
+      summary: Create a student
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Student created
+  /api/results:
+    get:
+      summary: List results
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Result list
+    post:
+      summary: Create a result
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Result created
+  /api/courses:
+    get:
+      summary: List courses
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Course list
+    post:
+      summary: Create a course
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Course created
+  /api/registration:
+    get:
+      summary: List registrations
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Registration list
+    post:
+      summary: Create a registration
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Registration created
+  /api/assessments:
+    get:
+      summary: List assessments
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Assessment list
+    post:
+      summary: Create an assessment
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Assessment created
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

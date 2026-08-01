@@ -35,12 +35,12 @@ function normalizeUser(user) {
 
 async function ensureAuthSchema() {
   try {
-    const tables = await prisma.$queryRaw`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'User'`
-    if (!tables.length) {
+    const userTable = await prisma.$queryRawUnsafe("SELECT name FROM sqlite_master WHERE type='table' AND name='User'")
+    if (!userTable.length) {
       return
     }
 
-    const columns = await prisma.$queryRaw`PRAGMA table_info('User')`
+    const columns = await prisma.$queryRawUnsafe("PRAGMA table_info('User')")
     const names = new Set(columns.map((column) => column.name))
     const additions = [
       ['email_verified', 'BOOLEAN NOT NULL DEFAULT 0'],
@@ -82,21 +82,20 @@ function buildTokenPayload(user, type) {
     institutionId: user.institutionId,
     type,
     jti: randomUUID(),
-    iss: 'urmis',
   }
 }
 
 function generateAccessToken(user) {
-  return jwt.sign(buildTokenPayload(user, 'access'), accessSecret, {
+  const payload = buildTokenPayload(user, 'access')
+  return jwt.sign(payload, accessSecret, {
     expiresIn: accessExpiry,
-    issuer: 'urmis',
   })
 }
 
 function generateRefreshToken(user) {
-  return jwt.sign(buildTokenPayload(user, 'refresh'), refreshSecret, {
+  const payload = buildTokenPayload(user, 'refresh')
+  return jwt.sign(payload, refreshSecret, {
     expiresIn: refreshExpiry,
-    issuer: 'urmis',
   })
 }
 
@@ -213,7 +212,7 @@ async function blacklistToken(userId, token, type) {
 
 async function isTokenBlacklisted(jti, type) {
   try {
-    const rows = await prisma.$queryRawUnsafe(`SELECT 1 FROM token_blacklist WHERE jti = ? AND token_type = ? LIMIT 1`, jti, type)
+    const rows = await prisma.$queryRawUnsafe(`SELECT 1 AS found FROM token_blacklist WHERE jti = ? AND token_type = ? LIMIT 1`, jti, type)
     return rows.length > 0
   } catch {
     return false
@@ -335,11 +334,11 @@ export default {
   },
 
   async verifyAccessToken(token) {
-    return jwt.verify(token, accessSecret, { issuer: 'urmis' })
+    return jwt.verify(token, accessSecret)
   },
 
   async verifyRefreshToken(token) {
-    return jwt.verify(token, refreshSecret, { issuer: 'urmis' })
+    return jwt.verify(token, refreshSecret)
   },
 
   async refreshTokens(refreshToken) {

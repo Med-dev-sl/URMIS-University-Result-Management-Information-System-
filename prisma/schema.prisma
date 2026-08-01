@@ -45,22 +45,31 @@ model Institution {
 }
 
 model User {
-  id                 Int     @id @default(autoincrement())
-  institutionId      Int?
-  full_name          String
-  email              String  @unique
-  password_hash      String
-  refresh_token      String?
-  role               String  @default("admin")
-  isSuspended        Boolean @default(false)
-  isLocked           Boolean @default(false)
-  mustChangePassword Boolean @default(false)
-  lockedAt           DateTime?
-  suspendedAt        DateTime?
-  lastPasswordChange DateTime?
-  created_at         DateTime @default(now())
-  updated_at         DateTime @default(now())
-  institution        Institution? @relation(fields: [institutionId], references: [id])
+  id                      Int     @id @default(autoincrement())
+  institutionId           Int?
+  full_name               String
+  email                   String  @unique
+  password_hash           String
+  refresh_token           String?
+  role                    String  @default("admin")
+  isSuspended             Boolean @default(false)
+  isLocked                Boolean @default(false)
+  mustChangePassword      Boolean @default(false)
+  lockedAt                DateTime?
+  suspendedAt             DateTime?
+  lastPasswordChange      DateTime?
+  email_verified          Boolean @default(false)
+  email_verification_token String?
+  email_verification_expires DateTime?
+  password_reset_token    String?
+  password_reset_expires  DateTime?
+  failed_login_attempts   Int     @default(0)
+  locked_until            DateTime?
+  last_login_at           DateTime?
+  refresh_token_version   Int     @default(0)
+  created_at              DateTime @default(now())
+  updated_at              DateTime @default(now())
+  institution             Institution? @relation(fields: [institutionId], references: [id])
   transcriptRequests TranscriptRequest[]  @relation("TranscriptRequester")
   generatedTranscripts Transcript[]      @relation("TranscriptGenerator")
   sentNotifications Notification[]        @relation("NotificationSender")

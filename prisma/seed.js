@@ -224,6 +224,16 @@ async function main() {
           updated_at: new Date(),
         },
       })
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          full_name: userData.full_name,
+          password_hash: await bcrypt.hash(userData.password, 10),
+          role: userData.role,
+          updated_at: new Date(),
+        },
+      })
     }
     users.push(user)
   }

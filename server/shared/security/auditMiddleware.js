@@ -1,4 +1,4 @@
-import { createAuditLog } from './auditService.js'
+import { createAuditLog, isAuditLoggingUnavailable } from './auditService.js'
 
 export function auditLogger(action) {
   return async (req, res, next) => {
@@ -19,7 +19,9 @@ export function auditLogger(action) {
           userAgent: req.headers['user-agent'] ?? null,
         })
       } catch (error) {
-        console.error('Failed to write audit log:', error)
+        if (!isAuditLoggingUnavailable(error)) {
+          console.error('Failed to write audit log:', error)
+        }
       }
     })
 
