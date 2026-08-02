@@ -100,6 +100,61 @@ router.post('/', requireAuth, requireRole('admin'), async (req, res) => {
   }
 })
 
+router.put('/:institutionId', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const institutionId = Number(req.params.institutionId)
+    if (Number.isNaN(institutionId)) {
+      return res.status(400).json({ message: 'Invalid institution identifier.' })
+    }
+
+    const existingInstitution = await prisma.institution.findUnique({ where: { id: institutionId } })
+    if (!existingInstitution) {
+      return res.status(404).json({ message: 'Institution not found.' })
+    }
+
+    const { name, address, contact_email } = req.body
+    const updatedInstitution = await prisma.institution.update({
+      where: { id: institutionId },
+      data: {
+        name: name ?? existingInstitution.name,
+        address: address ?? existingInstitution.address,
+        contact_email: contact_email ?? existingInstitution.contact_email,
+      },
+    })
+
+    res.json({
+      id: updatedInstitution.id,
+      name: updatedInstitution.name,
+      address: updatedInstitution.address,
+      contact_email: updatedInstitution.contact_email,
+      created_at: updatedInstitution.created_at,
+    })
+  } catch (error) {
+    console.error('Failed to update institution:', error)
+    res.status(500).json({ message: 'Unable to update institution.' })
+  }
+})
+
+router.delete('/:institutionId', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const institutionId = Number(req.params.institutionId)
+    if (Number.isNaN(institutionId)) {
+      return res.status(400).json({ message: 'Invalid institution identifier.' })
+    }
+
+    const existingInstitution = await prisma.institution.findUnique({ where: { id: institutionId } })
+    if (!existingInstitution) {
+      return res.status(404).json({ message: 'Institution not found.' })
+    }
+
+    await prisma.institution.delete({ where: { id: institutionId } })
+    res.status(204).send()
+  } catch (error) {
+    console.error('Failed to delete institution:', error)
+    res.status(500).json({ message: 'Unable to delete institution.' })
+  }
+})
+
 router.use('/faculties', facultiesRoutes)
 router.use('/departments', departmentsRoutes)
 

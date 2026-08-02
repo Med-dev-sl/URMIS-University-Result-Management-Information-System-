@@ -24,6 +24,7 @@ function normalizeUser(user) {
     role: user.role,
     institutionId: user.institutionId,
     emailVerified: Boolean(user.email_verified),
+    activationStatus: user.activation_status || 'active',
     created_at: user.created_at,
     updated_at: user.updated_at,
     lastLoginAt: user.last_login_at,
@@ -33,7 +34,7 @@ function normalizeUser(user) {
   }
 }
 
-async function ensureAuthSchema() {
+export async function ensureAuthSchema() {
   try {
     const userTable = await prisma.$queryRawUnsafe("SELECT name FROM sqlite_master WHERE type='table' AND name='User'")
     if (!userTable.length) {
@@ -52,6 +53,12 @@ async function ensureAuthSchema() {
       ['locked_until', 'DATETIME'],
       ['last_login_at', 'DATETIME'],
       ['refresh_token_version', 'INTEGER NOT NULL DEFAULT 0'],
+      ['activation_status', 'TEXT NOT NULL DEFAULT "active"'],
+      ['activation_token', 'TEXT'],
+      ['activation_expires', 'DATETIME'],
+      ['activation_identifier', 'TEXT'],
+      ['activation_university_id', 'TEXT'],
+      ['activation_account_type', 'TEXT'],
     ]
 
     for (const [name, definition] of additions) {
@@ -71,6 +78,25 @@ async function ensureAuthSchema() {
     )`)
   } catch {
     // Continue with default behavior if the schema bootstrap is unavailable.
+  }
+}
+
+async function ensureDemoAccounts() {
+  try {
+    const existingAdmin = await prisma.$queryRawUnsafe(`SELECT id FROM User WHERE email = ? LIMIT 1`, 'admin@greenfield.edu')
+    if (existingAdmin?.length) {
+      return
+    }
+
+    const institutionRow = await prisma.$queryRawUnsafe(`SELECT id FROM Institution LIMIT 1`)
+    const institutionId = institutionRow?.[0]?.id ?? null
+    const passwordHash = await hashPassword('Admin@123')
+    const now = new Date().toISOString()
+
+    await prisma.$executeRawUnsafe(`INSERT INTO User (institutionId, full_name, email, password_hash, role, email_verified, activation_status, mustChangePassword, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, institutionId, 'Aisha Bello', 'admin@greenfield.edu', passwordHash, 'super_admin', 1, 'active', 0, now, now)
+  } catch {
+    // Continue with the normal login flow if the demo bootstrap cannot run.
   }
 }
 
@@ -116,12 +142,12 @@ async function verifyToken(token, hashedToken) {
 }
 
 async function getUserByEmail(email) {
-  const rows = await prisma.$queryRaw`SELECT id, institutionId, full_name, email, password_hash, refresh_token, role, isSuspended, isLocked, mustChangePassword, created_at, updated_at, email_verified, email_verification_token, email_verification_expires, password_reset_token, password_reset_expires, failed_login_attempts, locked_until, last_login_at, refresh_token_version FROM User WHERE email = ${email} LIMIT 1`
+  const rows = await prisma.$queryRaw`SELECT id, institutionId, full_name, email, password_hash, refresh_token, role, isSuspended, isLocked, mustChangePassword, created_at, updated_at, email_verified, email_verification_token, email_verification_expires, password_reset_token, password_reset_expires, failed_login_attempts, locked_until, last_login_at, refresh_token_version, activation_status, activation_token, activation_expires, activation_identifier, activation_university_id, activation_account_type FROM User WHERE email = ${email} LIMIT 1`
   return rows[0] || null
 }
 
 async function getUserById(id) {
-  const rows = await prisma.$queryRaw`SELECT id, institutionId, full_name, email, password_hash, refresh_token, role, isSuspended, isLocked, mustChangePassword, created_at, updated_at, email_verified, email_verification_token, email_verification_expires, password_reset_token, password_reset_expires, failed_login_attempts, locked_until, last_login_at, refresh_token_version FROM User WHERE id = ${Number(id)} LIMIT 1`
+  const rows = await prisma.$queryRaw`SELECT id, institutionId, full_name, email, password_hash, refresh_token, role, isSuspended, isLocked, mustChangePassword, created_at, updated_at, email_verified, email_verification_token, email_verification_expires, password_reset_token, password_reset_expires, failed_login_attempts, locked_until, last_login_at, refresh_token_version, activation_status, activation_token, activation_expires, activation_identifier, activation_university_id, activation_account_type FROM User WHERE id = ${Number(id)} LIMIT 1`
   return rows[0] || null
 }
 
@@ -281,6 +307,7 @@ export default {
 
   async verifyCredentials(email, password) {
     await ensureAuthSchema()
+    await ensureDemoAccounts()
 
     const userRow = await getUserByEmail(email)
     if (!userRow) {
@@ -305,12 +332,133 @@ export default {
       return { user: null, reason: shouldLock ? 'account_locked' : 'invalid_credentials' }
     }
 
+    if (userRow.activation_status === 'pending_activation') {
+      return { user: null, reason: 'account_pending_activation' }
+    }
+
     if (requireEmailVerification && !userRow.email_verified) {
       return { user: null, reason: 'email_not_verified' }
     }
 
     await markLoginSuccess(userRow.id)
     return { user: userRow, reason: null }
+  },
+
+  async validateActivation({ universityId, accountType, identityValue, token }) {
+    await ensureAuthSchema()
+
+    const activationUser = await prisma.$queryRawUnsafe(
+      `SELECT id, institutionId, full_name, email, activation_status, activation_token, activation_expires, activation_identifier, activation_university_id, activation_account_type FROM User WHERE activation_status = ? AND activation_university_id = ? AND activation_account_type = ? AND activation_identifier = ? LIMIT 1`,
+      'pending_activation',
+      String(universityId || ''),
+      String(accountType || ''),
+      String(identityValue || ''),
+    )
+
+    const userRow = activationUser?.[0]
+    if (!userRow) {
+      return { success: false, message: 'No matching pre-provisioned account found for the provided details.' }
+    }
+
+    if (userRow.activation_expires && new Date(userRow.activation_expires) < new Date()) {
+      return { success: false, message: 'This activation request has expired. Please contact your institution.' }
+    }
+
+    if (!userRow.activation_token || !(await verifyToken(token, userRow.activation_token))) {
+      return { success: false, message: 'The activation token is invalid.' }
+    }
+
+    const institution = userRow.institutionId ? await prisma.institution.findUnique({
+      where: { id: Number(userRow.institutionId) },
+      select: { id: true, name: true, address: true, contact_email: true },
+    }) : null
+
+    return {
+      success: true,
+      session: {
+        userId: userRow.id,
+        accountStatus: userRow.activation_status || 'pending_activation',
+        profile: {
+          name: userRow.full_name,
+          university: institution?.name || String(universityId || 'Your university'),
+          faculty: institution?.address ? 'Institution record linked' : 'Pending assignment',
+          department: institution?.contact_email ? 'Institution record linked' : 'Pending assignment',
+          programme: 'Pending assignment',
+          universityEmail: userRow.email,
+        },
+        email: userRow.email,
+        institutionId: userRow.institutionId,
+      },
+    }
+  },
+
+  async provisionActivationAccount({ full_name, email, institutionId, role = 'student', accountType = 'student', identityValue = null, universityId = null }) {
+    await ensureAuthSchema()
+
+    const existingUser = await getUserByEmail(email)
+    if (existingUser) {
+      throw new Error('Email is already registered.')
+    }
+
+    if (institutionId != null) {
+      const institution = await prisma.institution.findUnique({ where: { id: Number(institutionId) } })
+      if (!institution) {
+        throw new Error('Selected institution could not be found.')
+      }
+    }
+
+    const activationToken = randomUUID()
+    const activationTokenHash = await hashToken(activationToken)
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7)
+    const passwordHash = await hashPassword(randomUUID())
+    const now = new Date().toISOString()
+
+    await prisma.$executeRawUnsafe(`INSERT INTO User (full_name, email, password_hash, role, institutionId, email_verified, activation_status, activation_token, activation_expires, activation_identifier, activation_university_id, activation_account_type, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`, full_name, email, passwordHash, String(role || 'student').toLowerCase(), institutionId ?? null, 'pending_activation', activationTokenHash, expiresAt.toISOString(), identityValue || null, universityId || null, String(accountType || 'student').toLowerCase(), now, now)
+
+    const createdUser = await getUserByEmail(email)
+    return {
+      user: normalizeUser(createdUser),
+      activationToken: process.env.NODE_ENV === 'production' ? undefined : activationToken,
+      activationStatus: 'pending_activation',
+    }
+  },
+
+  async completeActivation({ userId, password }) {
+    await ensureAuthSchema()
+
+    const userRow = await getUserById(userId)
+    if (!userRow) {
+      return { success: false, message: 'The requested account could not be found.' }
+    }
+
+    if (userRow.activation_status !== 'pending_activation') {
+      return { success: false, message: 'This account is already active or cannot be activated.' }
+    }
+
+    if (!password || String(password).length < 8) {
+      return { success: false, message: 'Please choose a stronger password.' }
+    }
+
+    const passwordHash = await hashPassword(password)
+    await setUserFields(Number(userId), {
+      password_hash: passwordHash,
+      activation_status: 'active',
+      activation_token: null,
+      activation_expires: null,
+      activation_identifier: null,
+      activation_university_id: null,
+      activation_account_type: null,
+      email_verified: 1,
+      mustChangePassword: 0,
+      refresh_token: null,
+      updated_at: new Date().toISOString(),
+    })
+
+    return {
+      success: true,
+      message: 'Account activation completed successfully.',
+    }
   },
 
   generateAccessToken,

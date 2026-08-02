@@ -26,33 +26,29 @@ import reportsRoutes from './routes/reports/index.js'
 import communicationRoutes from './routes/communication/index.js'
 import settingsRoutes from './routes/settings/index.js'
 import rolesRoutes from './routes/roles/index.js'
+import universityRoutes from './routes/university/index.js'
 import { auditLogger } from './shared/security/auditMiddleware.js'
+import { ensureAuthSchema } from './shared/services/authService.js'
 
 dotenv.config()
 
 const seedDemoData = async () => {
+  await ensureAuthSchema()
+
   const institutionCount = await prisma.institution.count()
+  const existingInstitution = institutionCount > 0 ? await prisma.institution.findFirst({ orderBy: { id: 'asc' } }) : null
 
-  if (institutionCount > 0) {
-    return
-  }
-
-  const institution = await prisma.institution.create({
-    data: {
-      name: 'Greenfield University',
-      address: '12 Learning Avenue, Lagos',
-      contact_email: 'admin@greenfield.edu',
-      users: {
-        create: {
-          full_name: 'Aisha Bello',
-          email: 'admin@greenfield.edu',
-          password_hash: await bcrypt.hash('Admin@123', 10),
-          role: 'admin',
-          updated_at: new Date(),
-        },
+  if (!existingInstitution) {
+      const institution = await prisma.institution.create({
+      data: {
+        name: 'Greenfield University',
+        address: '12 Learning Avenue, Lagos',
+        contact_email: 'admin@greenfield.edu',
       },
-    },
-  })
+    })
+
+    await prisma.$executeRawUnsafe(`INSERT INTO User (institutionId, full_name, email, password_hash, role, email_verified, activation_status, mustChangePassword, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, institution.id, 'Aisha Bello', 'admin@greenfield.edu', await bcrypt.hash('Admin@123', 10), 'super_admin', 1, 'active', 0, new Date().toISOString(), new Date().toISOString())
 
   const scienceFaculty = await prisma.faculty.create({
     data: {
@@ -147,6 +143,14 @@ const seedDemoData = async () => {
       academic_session: '2024/2025',
     },
   })))
+  return
+  }
+
+  const existingAdmin = await prisma.user.findFirst({ where: { email: 'admin@greenfield.edu' } })
+  if (!existingAdmin) {
+    await prisma.$executeRawUnsafe(`INSERT INTO User (institutionId, full_name, email, password_hash, role, email_verified, activation_status, mustChangePassword, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, existingInstitution.id, 'Aisha Bello', 'admin@greenfield.edu', await bcrypt.hash('Admin@123', 10), 'super_admin', 1, 'active', 0, new Date().toISOString(), new Date().toISOString())
+  }
 }
 
 export async function createApp({ seedData = true } = {}) {
@@ -192,6 +196,7 @@ export async function createApp({ seedData = true } = {}) {
   app.use('/api/communication', communicationRoutes)
   app.use('/api/settings', settingsRoutes)
   app.use('/api/roles', rolesRoutes)
+  app.use('/api/university', universityRoutes)
 
   app.get('/api/dashboard', async (req, res) => {
     try {

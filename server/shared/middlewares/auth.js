@@ -37,7 +37,8 @@ export function requireRole(...allowedRoles) {
 
     const normalizedAllowed = allowedRoles.map(normalizeRoleName)
     const normalizedRole = normalizeRoleName(req.user.role)
-    if (!normalizedAllowed.includes(normalizedRole)) {
+    const isAllowed = normalizedAllowed.includes(normalizedRole) || (normalizedRole === 'super_admin' && normalizedAllowed.includes('admin'))
+    if (!isAllowed) {
       return res.status(403).json({ message: 'Forbidden: insufficient role' })
     }
 

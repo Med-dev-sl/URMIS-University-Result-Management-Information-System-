@@ -1,14 +1,5 @@
-import FeaturePlaceholder from '../shared/components/FeaturePlaceholder'
-
-const platformItems = [
-  'Institution Management',
-  'Subscription Management',
-  'Platform Analytics',
-  'Global Settings',
-  'Audit Logs',
-  'System Administration',
-]
+import PlatformAdminModule from './PlatformAdminModule.jsx'
 
 export default function PlatformView() {
-  return <FeaturePlaceholder title="Platform" items={platformItems} />
+  return <PlatformAdminModule />
 }

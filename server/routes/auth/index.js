@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import authService from '../../shared/services/authService.js'
-import { requireAuth } from '../../shared/middlewares/auth.js'
+import { requireAuth, requireRole } from '../../shared/middlewares/auth.js'
 
 const router = Router()
 
@@ -31,6 +31,9 @@ router.post('/login', async (req, res) => {
     if (reason === 'account_locked') {
       return res.status(423).json({ message: 'Account temporarily locked. Please try again later.' })
     }
+    if (reason === 'account_pending_activation') {
+      return res.status(403).json({ message: 'This account is pending activation. Please complete the activation steps first.' })
+    }
     if (reason === 'email_not_verified') {
       return res.status(403).json({ message: 'Email verification is required before login.' })
     }
@@ -46,6 +49,68 @@ router.post('/login', async (req, res) => {
     accessToken,
     refreshToken,
   })
+})
+
+router.post('/activate/validate', async (req, res) => {
+  const { universityId, accountType, identityValue, token } = req.body
+
+  if (!universityId || !accountType || !identityValue || !token) {
+    return res.status(400).json({ message: 'universityId, accountType, identityValue, and token are required.' })
+  }
+
+  try {
+    const result = await authService.validateActivation({ universityId, accountType, identityValue, token })
+    if (!result.success) {
+      return res.status(400).json({ message: result.message })
+    }
+
+    return res.json(result)
+  } catch (error) {
+    return res.status(400).json({ message: error.message || 'Unable to validate activation request.' })
+  }
+})
+
+router.post('/activate/provision', requireAuth, requireRole('admin', 'super_admin'), async (req, res) => {
+  const { full_name, email, institutionId, role, accountType, identityValue, universityId } = req.body
+
+  if (!full_name || !email || !institutionId) {
+    return res.status(400).json({ message: 'full_name, email, and institutionId are required.' })
+  }
+
+  try {
+    const result = await authService.provisionActivationAccount({
+      full_name,
+      email,
+      institutionId,
+      role,
+      accountType,
+      identityValue,
+      universityId,
+    })
+
+    return res.status(201).json(result)
+  } catch (error) {
+    return res.status(400).json({ message: error.message || 'Unable to provision activation account.' })
+  }
+})
+
+router.post('/activate/complete', async (req, res) => {
+  const { userId, password } = req.body
+
+  if (!userId || !password) {
+    return res.status(400).json({ message: 'userId and password are required.' })
+  }
+
+  try {
+    const result = await authService.completeActivation({ userId, password })
+    if (!result.success) {
+      return res.status(400).json({ message: result.message })
+    }
+
+    return res.json(result)
+  } catch (error) {
+    return res.status(400).json({ message: error.message || 'Unable to complete activation.' })
+  }
 })
 
 router.post('/refresh', async (req, res) => {

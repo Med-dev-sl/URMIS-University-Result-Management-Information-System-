@@ -122,7 +122,7 @@ router.put('/:id', requireAuth, requireRole('admin', 'staff'), async (req, res) 
       return res.status(403).json({ message: 'Forbidden: cannot update users from another institution.' })
     }
 
-    const { full_name, email, role, institutionId, password } = req.body
+    const { full_name, email, role, institutionId, password, isSuspended, isLocked, mustChangePassword, email_verified } = req.body
     const updateData = {}
 
     if (full_name) updateData.full_name = full_name
@@ -142,6 +142,18 @@ router.put('/:id', requireAuth, requireRole('admin', 'staff'), async (req, res) 
         return res.status(403).json({ message: 'Forbidden: cannot change institution.' })
       }
       updateData.institutionId = Number(institutionId)
+    }
+    if (typeof isSuspended === 'boolean') {
+      updateData.isSuspended = isSuspended
+    }
+    if (typeof isLocked === 'boolean') {
+      updateData.isLocked = isLocked
+    }
+    if (typeof mustChangePassword === 'boolean') {
+      updateData.mustChangePassword = mustChangePassword
+    }
+    if (typeof email_verified === 'boolean') {
+      updateData.email_verified = email_verified
     }
 
     if (Object.keys(updateData).length === 0) {
