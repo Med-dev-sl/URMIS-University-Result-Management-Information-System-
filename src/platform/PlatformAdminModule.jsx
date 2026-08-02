@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../auth/useAuth.js'
 import { hasPermission } from '../permissions/permissions.js'
+import LoadingState from '../shared/components/LoadingState.jsx'
 
 const emptyForm = {
   name: '',
@@ -43,9 +44,10 @@ export default function PlatformAdminModule() {
   const [activeTab, setActiveTab] = useState('overview')
 
   const canManagePlatform = hasPermission(user, 'system:view') || user?.role === 'super_admin' || user?.role === 'admin'
+  const accessToken = user?.token
 
-  const loadData = async () => {
-    if (!canManagePlatform) {
+  const loadData = useCallback(async () => {
+    if (!canManagePlatform || !accessToken) {
       setError('You do not have platform administration access.')
       setLoading(false)
       return
@@ -55,11 +57,11 @@ export default function PlatformAdminModule() {
       setLoading(true)
       setError('')
       const [overviewResponse, monitoringResponse, institutionsResponse, usersResponse, settingsResponse] = await Promise.all([
-        fetch('/api/platform/overview', { headers: { Authorization: `Bearer ${user.token}` } }),
-        fetch('/api/platform/monitoring', { headers: { Authorization: `Bearer ${user.token}` } }),
-        fetch('/api/institution', { headers: { Authorization: `Bearer ${user.token}` } }),
-        fetch('/api/users', { headers: { Authorization: `Bearer ${user.token}` } }),
-        fetch('/api/platform/settings', { headers: { Authorization: `Bearer ${user.token}` } }),
+        fetch('/api/platform/overview', { headers: { Authorization: `Bearer ${accessToken}` } }),
+        fetch('/api/platform/monitoring', { headers: { Authorization: `Bearer ${accessToken}` } }),
+        fetch('/api/institution', { headers: { Authorization: `Bearer ${accessToken}` } }),
+        fetch('/api/users', { headers: { Authorization: `Bearer ${accessToken}` } }),
+        fetch('/api/platform/settings', { headers: { Authorization: `Bearer ${accessToken}` } }),
       ])
 
       if (!overviewResponse.ok || !monitoringResponse.ok || !institutionsResponse.ok || !usersResponse.ok || !settingsResponse.ok) {
@@ -84,13 +86,19 @@ export default function PlatformAdminModule() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [accessToken, canManagePlatform])
 
   useEffect(() => {
-    if (user?.token) {
-      loadData()
+    if (!accessToken) {
+      return
     }
-  }, [user?.token])
+
+    const timerId = window.setTimeout(() => {
+      void loadData()
+    }, 0)
+
+    return () => window.clearTimeout(timerId)
+  }, [accessToken, loadData])
 
   const stats = useMemo(() => [
     { label: 'Universities', value: overview?.totalUniversities ?? institutions.length, detail: 'Registered institutions' },
@@ -185,7 +193,7 @@ export default function PlatformAdminModule() {
 
       {error ? <div className="alert">{error}</div> : null}
 
-      {loading ? <div className="loading-card">Loading platform administration data…</div> : null}
+      {loading ? <LoadingState title="Loading platform administration" description="Gathering platform metrics, tenants, and user activity…" /> : null}
 
       {!loading && activeTab === 'overview' ? (
         <div className="content-grid">

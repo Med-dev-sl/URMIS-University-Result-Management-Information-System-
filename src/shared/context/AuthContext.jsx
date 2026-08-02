@@ -26,14 +26,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(() => !getStoredSession())
   const [sessionExpired, setSessionExpired] = useState(false)
 
-  useEffect(() => {
-    const stored = getStoredSession()
-    if (stored?.user) {
-      setUser(normalizeUser(stored.user, stored.accessToken))
-    }
-    setLoading(false)
-  }, [])
-
   const signIn = useCallback(async ({ email, password, rememberMe }) => {
     setLoading(true)
     try {

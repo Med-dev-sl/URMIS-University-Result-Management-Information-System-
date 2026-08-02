@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../auth/useAuth.js'
 import { hasPermission } from '../permissions/permissions.js'
 import CrudManager from '../shared/components/CrudManager.jsx'
+import LoadingState from '../shared/components/LoadingState.jsx'
 import { useCrudManager } from '../shared/hooks/useCrudManager.js'
 import {
   createAcademicSession,
@@ -171,37 +172,38 @@ export default function UniversityAdminView() {
   const api = useCrudManager({ items: records, pageSize: 6 })
 
   const canAccess = hasPermission(user, 'system:view') || user?.role === 'super_admin' || user?.role === 'admin'
+  const accessToken = user?.token
 
   const currentModule = useMemo(() => MODULES.find((module) => module.key === activeModule) || MODULES[0], [activeModule])
 
-  const hydrateModule = async (moduleKey) => {
-    if (!user?.token) return
+  const hydrateModule = useCallback(async (moduleKey) => {
+    if (!accessToken) return
     setLoading(true)
     setError('')
     try {
       if (moduleKey === 'programmes') {
-        const data = await fetchProgrammes(user.token)
+        const data = await fetchProgrammes(accessToken)
         setRecords(data)
       } else if (moduleKey === 'sessions') {
-        const data = await fetchAcademicSessions(user.token)
+        const data = await fetchAcademicSessions(accessToken)
         setRecords(data)
       } else if (moduleKey === 'semesters') {
-        const data = await fetchSemesters(user.token)
+        const data = await fetchSemesters(accessToken)
         setRecords(data)
       } else if (moduleKey === 'levels') {
-        const data = await fetchLevels(user.token)
+        const data = await fetchLevels(accessToken)
         setRecords(data)
       } else if (moduleKey === 'grading') {
-        const data = await fetchGradeScales(user.token)
+        const data = await fetchGradeScales(accessToken)
         setRecords(data)
       } else if (moduleKey === 'settings') {
-        const data = await fetchInstitutionSettings(user.token)
+        const data = await fetchInstitutionSettings(accessToken)
         setRecords(data)
       } else if (moduleKey === 'notifications') {
-        const data = await fetchNotifications(user.token)
+        const data = await fetchNotifications(accessToken)
         setRecords(data)
       } else if (moduleKey === 'audit') {
-        const data = await fetchAuditLogs(user.token)
+        const data = await fetchAuditLogs(accessToken)
         setRecords(data)
       }
     } catch (loadError) {
@@ -209,13 +211,13 @@ export default function UniversityAdminView() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [accessToken])
 
   useEffect(() => {
-    if (!user?.token) return
+    if (!accessToken) return
     const loadInitialData = async () => {
       try {
-        const overviewData = await fetchUniversityOverview(user.token)
+        const overviewData = await fetchUniversityOverview(accessToken)
         setOverview(overviewData)
       } catch (overviewError) {
         setError(overviewError.message || 'Unable to load university overview.')
@@ -223,8 +225,8 @@ export default function UniversityAdminView() {
       await hydrateModule(activeModule)
     }
 
-    loadInitialData()
-  }, [user?.token])
+    void loadInitialData()
+  }, [accessToken, activeModule, hydrateModule])
 
   const handleModuleChange = async (moduleKey) => {
     setActiveModule(moduleKey)
@@ -431,7 +433,7 @@ export default function UniversityAdminView() {
   const itemPayload = useMemo(() => {
     const moduleItems = api.filteredItems.length ? api.filteredItems : records
     return moduleItems[0] || null
-  }, [records, api.filteredItems.length, api.filteredItems])
+  }, [api.filteredItems, records])
 
   if (!canAccess) {
     return <article className="panel"><h3>University administration</h3><p>You do not have access to this module.</p></article>
@@ -456,7 +458,7 @@ export default function UniversityAdminView() {
 
       {error ? <div className="alert">{error}</div> : null}
 
-      {loading ? <div className="loading-card">Loading university administration data…</div> : null}
+      {loading ? <LoadingState title="Loading university administration" description="Preparing academic modules, governance settings, and notifications…" /> : null}
 
       {!loading ? (
         <CrudManager
