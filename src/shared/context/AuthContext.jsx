@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { clearSession, getStoredSession, persistSession } from '../../services/storage.js'
 import { getRolePermissions } from '../../permissions/roles.js'
 
@@ -19,11 +19,12 @@ function normalizeUser(user, accessToken) {
 }
 
 export function AuthProvider({ children }) {
+  const hasTriggeredInitialRefresh = useRef(false)
   const [user, setUser] = useState(() => {
     const stored = getStoredSession()
     return stored?.user ? normalizeUser(stored.user, stored.accessToken) : null
   })
-  const [loading, setLoading] = useState(() => !getStoredSession())
+  const [loading, setLoading] = useState(false)
   const [sessionExpired, setSessionExpired] = useState(false)
 
   const signIn = useCallback(async ({ email, password, rememberMe }) => {
@@ -63,13 +64,15 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }, [])
 
-  const refreshSession = useCallback(async () => {
+  const refreshSession = useCallback(async ({ silent = false } = {}) => {
     const stored = getStoredSession()
     if (!stored?.user) {
       throw new Error('Session expired')
     }
 
-    setLoading(true)
+    if (!silent) {
+      setLoading(true)
+    }
     try {
       const response = await fetch('/api/auth/refresh', {
         method: 'POST',
@@ -92,23 +95,22 @@ export function AuthProvider({ children }) {
       setSessionExpired(false)
       return refreshed
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }, [])
 
   useEffect(() => {
     if (!user) {
-      return
-    }
-
-    const stored = getStoredSession()
-    if (!stored?.user) {
+      hasTriggeredInitialRefresh.current = false
       return
     }
 
     let active = true
-    const timeoutId = window.setTimeout(() => {
-      refreshSession().catch(() => {
+    if (!hasTriggeredInitialRefresh.current) {
+      hasTriggeredInitialRefresh.current = true
+      refreshSession({ silent: true }).catch(() => {
         if (!active) {
           return
         }
@@ -116,11 +118,22 @@ export function AuthProvider({ children }) {
         setUser(null)
         setSessionExpired(true)
       })
-    }, 0)
+    }
+
+    const intervalId = window.setInterval(() => {
+      refreshSession({ silent: true }).catch(() => {
+        if (!active) {
+          return
+        }
+        clearSession()
+        setUser(null)
+        setSessionExpired(true)
+      })
+    }, 10 * 60 * 1000)
 
     return () => {
       active = false
-      window.clearTimeout(timeoutId)
+      window.clearInterval(intervalId)
     }
   }, [refreshSession, user])
 

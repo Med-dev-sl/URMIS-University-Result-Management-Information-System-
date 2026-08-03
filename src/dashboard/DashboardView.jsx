@@ -47,7 +47,7 @@ export default function DashboardView({ dashboard, user, onViewChange, onShowErr
     }
 
     loadInstitutions()
-  }, [isAdminProvisioningEnabled, user?.token, onShowError, provisionForm.institutionId])
+  }, [isAdminProvisioningEnabled, user?.token, onShowError])
 
   const handleProvisionAccount = async (event) => {
     event.preventDefault()

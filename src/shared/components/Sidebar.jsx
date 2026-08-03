@@ -1,4 +1,4 @@
-export default function Sidebar({ viewGroups, activeView, onSelectView }) {
+export default function Sidebar({ viewGroups, activeRoute, onSelectRoute }) {
   return (
     <aside className="sidebar">
       <div className="brand-block">
@@ -13,14 +13,15 @@ export default function Sidebar({ viewGroups, activeView, onSelectView }) {
         {viewGroups.map((group) => (
           <div key={group.label} className="nav-group">
             <p className="nav-group-label">{group.label}</p>
-            {group.items.map((view) => (
+            {group.items.map((item) => (
               <button
-                key={view}
-                className={`nav-item ${view === activeView ? 'active' : ''}`}
+                key={item.id}
+                className={`nav-item ${item.route === activeRoute ? 'active' : ''}`}
                 type="button"
-                onClick={() => onSelectView(view)}
+                onClick={() => onSelectRoute(item.route)}
               >
-                {view}
+                {item.icon ? <span className="nav-icon">{item.icon}</span> : null}
+                {item.title}
               </button>
             ))}
           </div>

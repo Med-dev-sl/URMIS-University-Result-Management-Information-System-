@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import PublicRoutes from '../routes/PublicRoutes.jsx'
 import ProtectedRoutes from '../routes/ProtectedRoutes.jsx'
 import RouteGuard from '../routes/RouteGuard.jsx'
+import { permissions } from '../permissions/permissions.js'
 
 const DashboardPage = lazy(() => import('../dashboard/DashboardPage.jsx'))
 const StudentsPage = lazy(() => import('../pages/StudentsPage.jsx'))
@@ -19,6 +20,10 @@ const AssessmentPage = lazy(() => import('../assessment/AssessmentView.jsx'))
 const RegistrationPage = lazy(() => import('../registrationFlow/RegistrationView.jsx'))
 const DeanPage = lazy(() => import('../dean/DeanView.jsx'))
 const HodPage = lazy(() => import('../hod/HodView.jsx'))
+const ProfilePage = lazy(() => import('../pages/ProfilePage.jsx'))
+const ApprovalPage = lazy(() => import('../approval/ApprovalView.jsx'))
+const DocumentsPage = lazy(() => import('../documents/DocumentsView.jsx'))
+const CommunicationPage = lazy(() => import('../communication/CommunicationView.jsx'))
 const UnauthorizedPage = lazy(() => import('../pages/Unauthorized.jsx'))
 const NotFoundPage = lazy(() => import('../pages/NotFound.jsx'))
 const SessionExpiredPage = lazy(() => import('../pages/SessionExpired.jsx'))
@@ -35,23 +40,26 @@ function Router() {
 
         <Route element={<ProtectedRoutes />}>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/dashboard/profile" element={<DashboardPage />} />
-          <Route path="/dashboard/students" element={<RouteGuard permission="student:view"><StudentsPage /></RouteGuard>} />
-          <Route path="/dashboard/staff" element={<RouteGuard permission="staff:create"><DashboardPage /></RouteGuard>} />
-          <Route path="/dashboard/courses" element={<RouteGuard permission="course:create"><DashboardPage /></RouteGuard>} />
-          <Route path="/dashboard/results" element={<RouteGuard permission="result:view"><ResultsPage /></RouteGuard>} />
-          <Route path="/dashboard/reports" element={<RouteGuard permission="report:view"><ReportsPage /></RouteGuard>} />
-          <Route path="/dashboard/settings" element={<RouteGuard permission="profile:view"><SettingsPage /></RouteGuard>} />
-          <Route path="/dashboard/student" element={<RouteGuard permission="profile:view"><StudentPage /></RouteGuard>} />
-          <Route path="/dashboard/lecturer" element={<RouteGuard permission="result:view"><LecturerPage /></RouteGuard>} />
-          <Route path="/dashboard/assessment" element={<RouteGuard permission="result:view"><AssessmentPage /></RouteGuard>} />
-          <Route path="/dashboard/registration" element={<RouteGuard permission="profile:view"><RegistrationPage /></RouteGuard>} />
-          <Route path="/dashboard/dean" element={<RouteGuard permission="result:approve"><DeanPage /></RouteGuard>} />
-          <Route path="/dashboard/hod" element={<RouteGuard permission="result:approve"><HodPage /></RouteGuard>} />
-          <Route path="/dashboard/platform" element={<RouteGuard permission="system:view"><PlatformPage /></RouteGuard>} />
-          <Route path="/dashboard/university" element={<RouteGuard permission="system:view"><UniversityPage /></RouteGuard>} />
-          <Route path="/dashboard/users" element={<RouteGuard permission="system:view"><UserManagementPage /></RouteGuard>} />
-          <Route path="/dashboard/academics" element={<RouteGuard permission="system:view"><AcademicStructurePage /></RouteGuard>} />
+          <Route path="/dashboard/profile" element={<RouteGuard permission={permissions.PROFILE_VIEW}><ProfilePage /></RouteGuard>} />
+          <Route path="/dashboard/students" element={<RouteGuard permission={permissions.STUDENT_VIEW}><StudentsPage /></RouteGuard>} />
+          <Route path="/dashboard/staff" element={<RouteGuard permission={permissions.STAFF_CREATE}><DashboardPage /></RouteGuard>} />
+          <Route path="/dashboard/courses" element={<RouteGuard permission={permissions.COURSE_CREATE}><DashboardPage /></RouteGuard>} />
+          <Route path="/dashboard/results" element={<RouteGuard permission={permissions.RESULT_VIEW}><ResultsPage /></RouteGuard>} />
+          <Route path="/dashboard/reports" element={<RouteGuard permission={permissions.REPORT_VIEW}><ReportsPage /></RouteGuard>} />
+          <Route path="/dashboard/approval" element={<RouteGuard permission={permissions.RESULT_APPROVE}><ApprovalPage /></RouteGuard>} />
+          <Route path="/dashboard/documents" element={<RouteGuard permission={permissions.DOCUMENT_VIEW}><DocumentsPage /></RouteGuard>} />
+          <Route path="/dashboard/communication" element={<RouteGuard permission={permissions.NOTIFICATION_VIEW}><CommunicationPage /></RouteGuard>} />
+          <Route path="/dashboard/settings" element={<RouteGuard permission={permissions.PROFILE_VIEW}><SettingsPage /></RouteGuard>} />
+          <Route path="/dashboard/student" element={<RouteGuard permission={permissions.PROFILE_VIEW}><StudentPage /></RouteGuard>} />
+          <Route path="/dashboard/lecturer" element={<RouteGuard permission={permissions.RESULT_VIEW}><LecturerPage /></RouteGuard>} />
+          <Route path="/dashboard/assessment" element={<RouteGuard permission={permissions.RESULT_VIEW}><AssessmentPage /></RouteGuard>} />
+          <Route path="/dashboard/registration" element={<RouteGuard permission={permissions.PROFILE_VIEW}><RegistrationPage /></RouteGuard>} />
+          <Route path="/dashboard/dean" element={<RouteGuard permission={permissions.RESULT_APPROVE}><DeanPage /></RouteGuard>} />
+          <Route path="/dashboard/hod" element={<RouteGuard permission={permissions.RESULT_APPROVE}><HodPage /></RouteGuard>} />
+          <Route path="/dashboard/platform" element={<RouteGuard permission={permissions.SYSTEM_VIEW}><PlatformPage /></RouteGuard>} />
+          <Route path="/dashboard/university" element={<RouteGuard permission={permissions.SYSTEM_VIEW}><UniversityPage /></RouteGuard>} />
+          <Route path="/dashboard/users" element={<RouteGuard permission={permissions.SYSTEM_VIEW}><UserManagementPage /></RouteGuard>} />
+          <Route path="/dashboard/academics" element={<RouteGuard permission={permissions.SYSTEM_VIEW}><AcademicStructurePage /></RouteGuard>} />
         </Route>
 
         <Route path="/unauthorized" element={<UnauthorizedPage />} />

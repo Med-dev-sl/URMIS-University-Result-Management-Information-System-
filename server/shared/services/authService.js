@@ -88,8 +88,14 @@ async function ensureDemoAccounts() {
       return
     }
 
-    const institutionRow = await prisma.$queryRawUnsafe(`SELECT id FROM Institution LIMIT 1`)
-    const institutionId = institutionRow?.[0]?.id ?? null
+    const institutionTable = await prisma.$queryRawUnsafe("SELECT name FROM sqlite_master WHERE type='table' AND name='Institution'")
+    let institutionId = null
+
+    if (institutionTable?.length) {
+      const institutionRow = await prisma.$queryRawUnsafe(`SELECT id FROM Institution LIMIT 1`)
+      institutionId = institutionRow?.[0]?.id ?? null
+    }
+
     const passwordHash = await hashPassword('Admin@123')
     const now = new Date().toISOString()
 
@@ -97,6 +103,21 @@ async function ensureDemoAccounts() {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, institutionId, 'Aisha Bello', 'admin@greenfield.edu', passwordHash, 'super_admin', 1, 'active', 0, now, now)
   } catch {
     // Continue with the normal login flow if the demo bootstrap cannot run.
+  }
+}
+
+async function maybeDisconnectPrisma() {
+  const databaseUrl = process.env.DATABASE_URL || ''
+  const shouldDisconnect = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID || process.env.VITEST || databaseUrl.includes('auth-test') || databaseUrl.includes('urmis-auth-')
+
+  if (!shouldDisconnect) {
+    return
+  }
+
+  try {
+    await prisma.$disconnect()
+  } catch {
+    // Ignore disconnect failures in test environments.
   }
 }
 
@@ -306,42 +327,46 @@ export default {
   },
 
   async verifyCredentials(email, password) {
-    await ensureAuthSchema()
-    await ensureDemoAccounts()
+    try {
+      await ensureAuthSchema()
+      await ensureDemoAccounts()
 
-    const userRow = await getUserByEmail(email)
-    if (!userRow) {
-      return { user: null, reason: 'invalid_credentials' }
+      const userRow = await getUserByEmail(email)
+      if (!userRow) {
+        return { user: null, reason: 'invalid_credentials' }
+      }
+
+      if (userRow.isSuspended || userRow.isLocked) {
+        return { user: null, reason: 'account_disabled' }
+      }
+
+      const lockedUntil = userRow.locked_until ? new Date(userRow.locked_until) : null
+      if (lockedUntil && lockedUntil > new Date()) {
+        return { user: null, reason: 'account_locked' }
+      }
+
+      const validPassword = await verifyPassword(password, userRow.password_hash)
+      if (!validPassword) {
+        const nextAttempts = Number(userRow.failed_login_attempts || 0) + 1
+        const shouldLock = nextAttempts >= lockoutThreshold
+        const lockTime = shouldLock ? new Date(Date.now() + lockoutDurationMs).toISOString() : null
+        await markLoginFailure(userRow.id, nextAttempts, lockTime)
+        return { user: null, reason: shouldLock ? 'account_locked' : 'invalid_credentials' }
+      }
+
+      if (userRow.activation_status === 'pending_activation') {
+        return { user: null, reason: 'account_pending_activation' }
+      }
+
+      if (requireEmailVerification && !userRow.email_verified) {
+        return { user: null, reason: 'email_not_verified' }
+      }
+
+      await markLoginSuccess(userRow.id)
+      return { user: userRow, reason: null }
+    } finally {
+      await maybeDisconnectPrisma()
     }
-
-    if (userRow.isSuspended || userRow.isLocked) {
-      return { user: null, reason: 'account_disabled' }
-    }
-
-    const lockedUntil = userRow.locked_until ? new Date(userRow.locked_until) : null
-    if (lockedUntil && lockedUntil > new Date()) {
-      return { user: null, reason: 'account_locked' }
-    }
-
-    const validPassword = await verifyPassword(password, userRow.password_hash)
-    if (!validPassword) {
-      const nextAttempts = Number(userRow.failed_login_attempts || 0) + 1
-      const shouldLock = nextAttempts >= lockoutThreshold
-      const lockTime = shouldLock ? new Date(Date.now() + lockoutDurationMs).toISOString() : null
-      await markLoginFailure(userRow.id, nextAttempts, lockTime)
-      return { user: null, reason: shouldLock ? 'account_locked' : 'invalid_credentials' }
-    }
-
-    if (userRow.activation_status === 'pending_activation') {
-      return { user: null, reason: 'account_pending_activation' }
-    }
-
-    if (requireEmailVerification && !userRow.email_verified) {
-      return { user: null, reason: 'email_not_verified' }
-    }
-
-    await markLoginSuccess(userRow.id)
-    return { user: userRow, reason: null }
   },
 
   async validateActivation({ universityId, accountType, identityValue, token }) {

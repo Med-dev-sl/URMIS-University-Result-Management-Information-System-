@@ -7,10 +7,22 @@ export const permissions = {
   REPORT_VIEW: 'report:view',
   USER_MANAGE: 'user:manage',
   PROFILE_VIEW: 'profile:view',
+  SETTINGS_VIEW: 'settings:view',
+  NOTIFICATION_VIEW: 'notification:view',
   COURSE_CREATE: 'course:create',
   STAFF_CREATE: 'staff:create',
   UNIVERSITY_CREATE: 'university:create',
   SYSTEM_VIEW: 'system:view',
+  DEPARTMENT_VIEW: 'department:view',
+  FACULTY_VIEW: 'faculty:view',
+  APPROVAL_MANAGE: 'approval:manage',
+  DOCUMENT_VIEW: 'documents:view',
+  EXAM_MANAGE: 'exams:manage',
+  RESULT_REVIEW: 'result:review',
+  STUDENT_MANAGE: 'student:manage',
+  INVOICE_MANAGE: 'invoice:manage',
+  FEE_VIEW: 'fee:view',
+  SYSTEM_MANAGE: 'system:manage',
 }
 
 export function hasPermission(user, permission) {
