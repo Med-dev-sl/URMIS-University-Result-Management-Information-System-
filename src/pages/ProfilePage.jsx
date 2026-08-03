@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useAuth } from '../auth/useAuth.js'
+import { getRoleLabel } from '../permissions/roles.js'
 
 export default function ProfilePage() {
   const { user } = useAuth()
@@ -7,7 +8,7 @@ export default function ProfilePage() {
   const details = useMemo(() => [
     { label: 'Full name', value: user?.full_name || '–' },
     { label: 'Email', value: user?.email || '–' },
-    { label: 'Role', value: user?.role || '–' },
+    { label: 'Role', value: getRoleLabel(user?.role) || '–' },
     { label: 'University', value: user?.institutionId ? `ID ${user.institutionId}` : 'Platform-level access' },
     { label: 'Status', value: user?.activationStatus === 'active' ? 'Active' : user?.activationStatus || 'Unknown' },
   ], [user])

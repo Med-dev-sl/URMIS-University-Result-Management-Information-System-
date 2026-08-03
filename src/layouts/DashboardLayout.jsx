@@ -13,6 +13,10 @@ export default function DashboardLayout({ children }) {
   const activeItem = getActiveSidebarRoute(location.pathname)
 
   const handleSelectView = (route) => {
+    if (route === '/dashboard/logout') {
+      signOut()
+      return
+    }
     navigate(route)
   }
 

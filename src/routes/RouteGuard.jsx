@@ -14,8 +14,12 @@ export default function RouteGuard({ children, requireAuth = true, permission })
     return <Navigate to="/login" replace state={{ from: location }} />
   }
 
-  if (permission && !hasPermission(user, permission)) {
-    return <Navigate to="/unauthorized" replace />
+  if (permission) {
+    const permissionList = Array.isArray(permission) ? permission : [permission]
+    const hasAnyPermission = permissionList.some((perm) => hasPermission(user, perm))
+    if (!hasAnyPermission) {
+      return <Navigate to="/unauthorized" replace />
+    }
   }
 
   return children

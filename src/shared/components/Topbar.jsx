@@ -1,3 +1,5 @@
+import { getRoleLabel } from '../../permissions/roles.js'
+
 export default function Topbar({ activeView, user, onRefresh, onSignOut }) {
   return (
     <header className="topbar">
@@ -7,7 +9,12 @@ export default function Topbar({ activeView, user, onRefresh, onSignOut }) {
       </div>
 
       <div className="topbar-actions">
-        {user ? <span className="topbar-user">{user.full_name || user.email}</span> : null}
+        {user ? (
+          <div className="topbar-user-info">
+            <span className="topbar-user">{user.full_name || user.email}</span>
+            <span className="topbar-role">{getRoleLabel(user.role)}</span>
+          </div>
+        ) : null}
         <button className="primary-button" type="button" onClick={onRefresh}>
           Refresh
         </button>

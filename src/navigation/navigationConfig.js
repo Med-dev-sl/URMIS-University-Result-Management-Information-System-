@@ -3,79 +3,78 @@ import { permissions } from '../permissions/permissions.js'
 export const sidebarGroups = [
   {
     id: 'overview',
-    label: 'Overview',
+    label: 'Dashboard',
     items: [
       { id: 'dashboard', title: 'Dashboard', icon: '📊', route: '/dashboard' },
     ],
   },
   {
-    id: 'academic-management',
-    label: 'Academic Management',
+    id: 'platform-management',
+    label: 'Platform Management',
     items: [
-      { id: 'academics', title: 'Academic structure', icon: '🏛️', route: '/dashboard/academics', permission: permissions.SYSTEM_VIEW },
+      { id: 'platform-universities', title: 'Universities', icon: '🏫', route: '/dashboard/system/universities', permission: permissions.SYSTEM_MANAGE },
+      { id: 'platform-university-administrators', title: 'University Administrators', icon: '👥', route: '/dashboard/system/university-administrators', permission: permissions.SYSTEM_MANAGE },
     ],
   },
   {
-    id: 'user-management',
-    label: 'User Management',
+    id: 'user-access-management',
+    label: 'User & Access Management',
     items: [
-      { id: 'students', title: 'Students', icon: '🎓', route: '/dashboard/students', permission: permissions.STUDENT_VIEW },
-      { id: 'student-profile', title: 'Student profile', icon: '👤', route: '/dashboard/student', permission: permissions.PROFILE_VIEW },
-      { id: 'users', title: 'Users', icon: '👥', route: '/dashboard/users', permission: permissions.SYSTEM_VIEW },
+      { id: 'platform-users', title: 'Platform Users', icon: '👤', route: '/dashboard/system/users', permission: permissions.SYSTEM_MANAGE },
+      { id: 'roles-permissions', title: 'Roles & Permissions', icon: '🔐', route: '/dashboard/system/roles-permissions', permission: permissions.SYSTEM_MANAGE },
     ],
   },
   {
-    id: 'teaching-learning',
-    label: 'Teaching & Learning',
+    id: 'subscription-management',
+    label: 'Subscription Management',
     items: [
-      { id: 'lecturer', title: 'Lecturer', icon: '👨‍🏫', route: '/dashboard/lecturer', permission: permissions.RESULT_VIEW },
-      { id: 'assessment', title: 'Assessment', icon: '📝', route: '/dashboard/assessment', permission: permissions.ASSESSMENT_VIEW },
-      { id: 'registration', title: 'Registration', icon: '🧑‍🎓', route: '/dashboard/registration', permission: permissions.REGISTRATION_VIEW },
+      { id: 'subscription-plans', title: 'Subscription Plans', icon: '💳', route: '/dashboard/system/subscriptions/plans', permission: permissions.SYSTEM_MANAGE },
+      { id: 'university-subscriptions', title: 'University Subscriptions', icon: '🏛️', route: '/dashboard/system/subscriptions/universities', permission: permissions.SYSTEM_MANAGE },
+      { id: 'billing-payments', title: 'Billing & Payments', icon: '🧾', route: '/dashboard/system/subscriptions/billing', permission: permissions.SYSTEM_MANAGE },
     ],
   },
   {
-    id: 'result-management',
-    label: 'Result Management',
+    id: 'reports-analytics',
+    label: 'Reports & Analytics',
     items: [
-      { id: 'results', title: 'Results', icon: '📈', route: '/dashboard/results', permission: permissions.RESULT_VIEW },
-      { id: 'approval', title: 'Approval', icon: '✅', route: '/dashboard/approval', permission: permissions.RESULT_APPROVE },
+      { id: 'platform-reports', title: 'Platform Reports', icon: '📈', route: '/dashboard/system/reports/platform', permission: permissions.SYSTEM_MANAGE },
+      { id: 'usage-analytics', title: 'Usage Analytics', icon: '📊', route: '/dashboard/system/reports/usage', permission: permissions.SYSTEM_MANAGE },
     ],
   },
   {
-    id: 'academic-records',
-    label: 'Academic Records',
+    id: 'security-monitoring',
+    label: 'Security & Monitoring',
     items: [
-      { id: 'documents', title: 'Documents', icon: '📁', route: '/dashboard/documents', permission: permissions.DOCUMENT_VIEW },
+      { id: 'audit-logs', title: 'Audit Logs', icon: '🧾', route: '/dashboard/system/audit-logs', permission: permissions.SYSTEM_MANAGE },
+      { id: 'login-activities', title: 'Login Activities', icon: '🔐', route: '/dashboard/system/audit-logs/login-activities', permission: permissions.SYSTEM_MANAGE },
+      { id: 'security-alerts', title: 'Security Alerts', icon: '🚨', route: '/dashboard/system/monitoring/security-alerts', permission: permissions.SYSTEM_MANAGE },
+      { id: 'system-monitoring', title: 'System Monitoring', icon: '🖥️', route: '/dashboard/system/monitoring', permission: permissions.SYSTEM_MANAGE },
     ],
   },
   {
-    id: 'reports',
-    label: 'Reports',
+    id: 'system-configuration',
+    label: 'System Configuration',
     items: [
-      { id: 'reports', title: 'Reports', icon: '📊', route: '/dashboard/reports', permission: permissions.REPORT_VIEW },
+      { id: 'global-settings', title: 'Global Settings', icon: '⚙️', route: '/dashboard/system/settings/global', permission: permissions.SYSTEM_MANAGE },
+      { id: 'authentication-settings', title: 'Authentication Settings', icon: '🔒', route: '/dashboard/system/settings/authentication', permission: permissions.SYSTEM_MANAGE },
+      { id: 'notification-settings', title: 'Notification Settings', icon: '🔔', route: '/dashboard/system/settings/notification', permission: permissions.SYSTEM_MANAGE },
     ],
   },
   {
-    id: 'communication',
-    label: 'Communication',
+    id: 'support',
+    label: 'Support',
     items: [
-      { id: 'communication', title: 'Communication', icon: '💬', route: '/dashboard/communication', permission: permissions.NOTIFICATION_VIEW },
+      { id: 'help-documentation', title: 'Help & Documentation', icon: '📚', route: '/dashboard/system/help', permission: permissions.SYSTEM_MANAGE },
+      { id: 'system-information', title: 'System Information', icon: 'ℹ️', route: '/dashboard/system/info', permission: permissions.SYSTEM_MANAGE },
     ],
   },
   {
-    id: 'system-administration',
-    label: 'System Administration',
+    id: 'my-account',
+    label: 'My Account',
     items: [
-      { id: 'platform', title: 'Platform', icon: '⚙️', route: '/dashboard/platform', permission: permissions.SYSTEM_VIEW },
-      { id: 'university', title: 'University', icon: '🏫', route: '/dashboard/university', permission: permissions.SYSTEM_VIEW },
-    ],
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    items: [
-      { id: 'profile', title: 'My Profile', icon: '👤', route: '/dashboard/profile', permission: permissions.PROFILE_VIEW },
-      { id: 'settings', title: 'Settings', icon: '⚙️', route: '/dashboard/settings', permission: permissions.SETTINGS_VIEW },
+      { id: 'profile', title: 'Profile', icon: '👤', route: '/dashboard/profile', permission: permissions.PROFILE_VIEW },
+      { id: 'change-password', title: 'Change Password', icon: '🔑', route: '/dashboard/profile', permission: permissions.PROFILE_VIEW },
+      { id: 'sign-out', title: 'Logout', icon: '🚪', route: '/dashboard/logout' },
     ],
   },
 ]
@@ -87,7 +86,8 @@ export function getVisibleSidebarGroups(user) {
       items: group.items.filter((item) => {
         if (!item.permission) return true
         if (!user?.permissions) return false
-        return user.permissions.includes(item.permission)
+        const permissionsToCheck = Array.isArray(item.permission) ? item.permission : [item.permission]
+        return permissionsToCheck.some((permission) => user.permissions.includes(permission))
       }),
     }))
     .filter((group) => group.items.length)
@@ -95,12 +95,17 @@ export function getVisibleSidebarGroups(user) {
 
 export function getActiveSidebarRoute(pathname) {
   const normalized = pathname.replace(/\/+$|\/\//g, '/')
+  let bestMatch = null
+
   for (const group of sidebarGroups) {
     for (const item of group.items) {
       if (normalized === item.route || (item.route !== '/dashboard' && normalized.startsWith(item.route))) {
-        return item
+        if (!bestMatch || item.route.length > bestMatch.route.length) {
+          bestMatch = item
+        }
       }
     }
   }
-  return sidebarGroups[0].items[0]
+
+  return bestMatch || sidebarGroups[0].items[0]
 }

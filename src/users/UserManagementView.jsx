@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 const ROLE_OPTIONS = [
   'Students',
@@ -187,6 +187,24 @@ const emptyForm = {
   profileSummary: '',
 }
 
+function normalizeUser(item) {
+  return {
+    id: item.id,
+    fullName: item.full_name || item.name || 'Unnamed user',
+    email: item.email || '—',
+    role: item.role || item.role_name || 'Unknown',
+    department: item.department?.name || item.department || 'General',
+    status: item.status ? String(item.status).charAt(0).toUpperCase() + String(item.status).slice(1) : 'Unknown',
+    phone: item.phone || item.contact_phone || '—',
+    lastLogin: item.last_login || item.lastLogin || 'Unknown',
+    joinDate: item.created_at ? item.created_at.slice(0, 10) : item.joinDate || 'Unknown',
+    permissions: Array.isArray(item.permissions) ? item.permissions : [],
+    profileSummary: item.profileSummary || item.profile_summary || 'User profile initialized.',
+    roleHistory: item.role_history || item.roleHistory || [item.role || 'Unknown'],
+    activity: Array.isArray(item.activity) ? item.activity : [],
+  }
+}
+
 export default function UserManagementView() {
   const [users, setUsers] = useState(initialUsers)
   const [activeRole, setActiveRole] = useState('All')
@@ -201,7 +219,39 @@ export default function UserManagementView() {
   const [notice, setNotice] = useState('Manage university users with role-aware views, auditing, and quick actions.')
   const [roleModalOpen, setRoleModalOpen] = useState(false)
   const [roleDraft, setRoleDraft] = useState('Students')
+  const [error, setError] = useState('')
   const importInputRef = useRef(null)
+
+  useEffect(() => {
+    let active = true
+
+    const loadUsers = async () => {
+      try {
+        const response = await fetch('/api/users')
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}))
+          throw new Error(body.message || 'Unable to load users.')
+        }
+
+        const data = await response.json()
+        if (active && Array.isArray(data)) {
+          setUsers(data.map(normalizeUser))
+          setSelectedUser(data.length ? normalizeUser(data[0]) : null)
+          setError('')
+        }
+      } catch (fetchError) {
+        if (active) {
+          setError(fetchError.message || 'Unable to load user directory.')
+          setNotice('Unable to load live user directory, using local preview data.')
+        }
+      }
+    }
+
+    void loadUsers()
+    return () => {
+      active = false
+    }
+  }, [])
 
   const departments = useMemo(() => ['All', ...Array.from(new Set(users.map((user) => user.department)))], [users])
 
@@ -364,6 +414,7 @@ export default function UserManagementView() {
         ))}
       </div>
 
+      {error ? <div className="alert">{error}</div> : null}
       <div className="notice-banner">{notice}</div>
 
       <div className="topbar-actions user-toolbar" style={{ marginBottom: '16px' }}>

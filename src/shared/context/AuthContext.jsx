@@ -1,11 +1,11 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { clearSession, getStoredSession, persistSession } from '../../services/storage.js'
-import { getRolePermissions } from '../../permissions/roles.js'
+import { getRolePermissions, normalizeRoleName } from '../../permissions/roles.js'
 
 const AuthContext = createContext(null)
 
 function normalizeUser(user, accessToken) {
-  const role = user?.role || 'student'
+  const role = normalizeRoleName(user?.role)
   const permissions = Array.isArray(user?.permissions) && user.permissions.length > 0
     ? user.permissions
     : getRolePermissions(role)
