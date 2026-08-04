@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../shared/context/useAuth.js'
-import { fetchCourses, fetchDepartments, fetchFaculties } from '../shared/api'
+import {
+  fetchCourses,
+  fetchDepartments,
+  fetchFaculties,
+  fetchRegistrationPeriods,
+  fetchRegistrations,
+  createRegistration,
+  approveRegistration,
+  rejectRegistration,
+} from '../shared/api.js'
 import { canApproveRegistration, getRegistrationRoleHint, getRegistrationStatusLabel, getSelectedCourseCreditUnits } from './registrationUtils.js'
 
 const emptyPeriod = {
@@ -37,12 +46,7 @@ export default function RegistrationView() {
           fetchFaculties(),
           fetchDepartments(),
           fetchCourses(),
-          fetch('/api/registration/periods', {
-            headers: { Authorization: `Bearer ${user?.token || ''}` },
-          }).then((response) => {
-            if (!response.ok) throw new Error('Unable to load registration periods')
-            return response.json()
-          }),
+          fetchRegistrationPeriods(),
         ])
 
         setFacultyOptions(faculties)
@@ -68,11 +72,7 @@ export default function RegistrationView() {
       if (!user) return
       setLoading(true)
       try {
-        const response = await fetch('/api/registration', {
-          headers: { Authorization: `Bearer ${user?.token || ''}` },
-        })
-        if (!response.ok) throw new Error('Unable to load registration records')
-        const data = await response.json()
+        const data = await fetchRegistrations()
         setRegistrations(Array.isArray(data) ? data : [])
       } catch (err) {
         setError(err.message)
@@ -119,24 +119,10 @@ export default function RegistrationView() {
     setMessage('')
 
     try {
-      const response = await fetch('/api/registration', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user?.token || ''}`,
-        },
-        body: JSON.stringify({ courseIds: selectedCourseIds, registrationPeriodId: period.id }),
-      })
-
-      const body = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(body.message || 'Registration could not be submitted')
-
+      await createRegistration({ courseIds: selectedCourseIds, registrationPeriodId: period.id })
       setMessage('Registration submitted successfully and is awaiting review.')
       setSelectedCourseIds([])
-      const updated = await fetch('/api/registration', {
-        headers: { Authorization: `Bearer ${user?.token || ''}` },
-      })
-      const refreshed = await updated.json().catch(() => [])
+      const refreshed = await fetchRegistrations()
       setRegistrations(Array.isArray(refreshed) ? refreshed : [])
     } catch (err) {
       setError(err.message)
@@ -149,12 +135,7 @@ export default function RegistrationView() {
     if (!canReview) return
     setLoading(true)
     try {
-      const response = await fetch(`/api/registration/${registrationId}/approve`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${user?.token || ''}` },
-      })
-      const body = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(body.message || 'Unable to approve the registration')
+      await approveRegistration(registrationId)
       setMessage('Registration approved successfully.')
     } catch (err) {
       setError(err.message)
@@ -167,16 +148,7 @@ export default function RegistrationView() {
     if (!canReview) return
     setLoading(true)
     try {
-      const response = await fetch(`/api/registration/${registrationId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user?.token || ''}`,
-        },
-        body: JSON.stringify({ reason: 'Needs revision' }),
-      })
-      const body = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(body.message || 'Unable to reject the registration')
+      await rejectRegistration(registrationId, 'Needs revision')
       setMessage('Registration rejected successfully.')
     } catch (err) {
       setError(err.message)

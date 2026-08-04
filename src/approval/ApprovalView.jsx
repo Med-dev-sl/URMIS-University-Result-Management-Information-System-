@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ApprovalDecisionPanel from './components/ApprovalDecisionPanel.jsx'
 import ApprovalQueueItem from './components/ApprovalQueueItem.jsx'
-import { buildTimeline, getNextStage, summarizeApprovalQueue } from './approvalWorkflowUtils.js'
+import { buildTimeline, summarizeApprovalQueue } from './approvalWorkflowUtils.js'
+import { actionApprovalTask, fetchApprovalTasks } from '../shared/api.js'
 
 const initialQueue = [
   {
@@ -56,6 +57,39 @@ export default function ApprovalView() {
   const [comment, setComment] = useState('')
   const [selectedAction, setSelectedAction] = useState('Approve')
   const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadQueue = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await fetchApprovalTasks()
+        if (Array.isArray(data) && data.length > 0) {
+          const normalized = data.map((task) => ({
+            id: task.id,
+            student: task.title ?? 'Approval request',
+            course: task.target_type ?? 'Approval',
+            code: String(task.target_id ?? ''),
+            currentStage: task.current_stage ?? task.currentStage ?? 'Unknown',
+            status: task.status ?? 'Pending',
+            submittedAt: task.created_at ? new Date(task.created_at).toLocaleDateString() : '',
+            updatedAt: task.updated_at ? new Date(task.updated_at).toLocaleDateString() : '',
+            comment: task.description || task.comment || '',
+          }))
+          setQueue(normalized)
+          setSelectedItemId(normalized[0].id)
+        }
+      } catch (err) {
+        setError(err.message || 'Unable to load approval tasks.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadQueue()
+  }, [])
 
   const summary = useMemo(() => summarizeApprovalQueue(queue), [queue])
   const selectedItem = queue.find((item) => item.id === selectedItemId) || queue[0]
@@ -66,39 +100,53 @@ export default function ApprovalView() {
     return query === '' || [item.student, item.course, item.code, item.currentStage, item.status].join(' ').toLowerCase().includes(query)
   })
 
-  const handleDecision = (action) => {
-    setQueue((current) => current.map((item) => {
-      if (item.id !== selectedItemId) return item
+  const handleDecision = async (action) => {
+    if (!selectedItem) return
 
-      if (action === 'Approve') {
-        return {
-          ...item,
-          status: 'Approved',
-          currentStage: getNextStage(item.currentStage),
-          comment,
-          updatedAt: '2026-08-02',
-        }
-      }
+    const normalizedAction = action === 'Return' ? 'reject' : action.toLowerCase()
+    setLoading(true)
+    setError('')
 
-      if (action === 'Reject') {
-        return {
-          ...item,
-          status: 'Rejected',
-          currentStage: 'Rejected',
-          comment,
-          updatedAt: '2026-08-02',
-        }
-      }
+    try {
+      const updatedTask = await actionApprovalTask(selectedItem.id, normalizedAction, comment)
+      setQueue((current) => current.map((item) => (
+        item.id === updatedTask.id
+          ? {
+              ...item,
+              status: updatedTask.status ?? item.status,
+              currentStage: updatedTask.current_stage ?? updatedTask.currentStage ?? item.currentStage,
+              comment: updatedTask.description ?? updatedTask.comment ?? comment,
+              updatedAt: updatedTask.updated_at ? new Date(updatedTask.updated_at).toLocaleDateString() : item.updatedAt,
+            }
+          : item
+      )))
+      setSelectedAction(action)
+      setComment('')
+    } catch (err) {
+      setError(err.message || 'Unable to apply approval action.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-      return {
-        ...item,
-        status: 'Returned',
-        currentStage: 'Lecturer',
-        comment,
-        updatedAt: '2026-08-02',
-      }
-    }))
-    setSelectedAction(action)
+  if (loading && queue.length === 0) {
+    return (
+      <section className="student-module-panel">
+        <div className="panel">
+          <p>Loading approval tasks...</p>
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section className="student-module-panel">
+        <div className="panel auth-message error">
+          <p>{error}</p>
+        </div>
+      </section>
+    )
   }
 
   return (

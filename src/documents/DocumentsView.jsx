@@ -1,91 +1,90 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import DocumentListItem from './components/DocumentListItem.jsx'
 import DocumentUploadCard from './components/DocumentUploadCard.jsx'
-
-const initialDocuments = [
-  {
-    id: 1,
-    name: 'CSC401 Course Outline.pdf',
-    category: 'Course outlines',
-    version: '3.1',
-    status: 'Approved',
-    size: '1.4 MB',
-    owner: 'Department of Computing',
-    updated: 'Today, 09:10',
-    summary: 'Semester plan, weekly breakdown, and assessment schedule for the current offering.',
-  },
-  {
-    id: 2,
-    name: '2025 Past Paper - Semester 1.pdf',
-    category: 'Past papers',
-    version: '2.0',
-    status: 'Published',
-    size: '860 KB',
-    owner: 'Examination Office',
-    updated: 'Yesterday',
-    summary: 'Official past paper for the first semester examination series.',
-  },
-  {
-    id: 3,
-    name: 'Student Handbook 2026.pdf',
-    category: 'Policies',
-    version: '1.4',
-    status: 'Reviewed',
-    size: '2.1 MB',
-    owner: 'Registry',
-    updated: '2 days ago',
-    summary: 'Latest student handbook with registration, grading, and appeals guidance.',
-  },
-]
+import { fetchDocuments, uploadDocument } from '../shared/api.js'
 
 const categories = ['All', 'Course outlines', 'Past papers', 'Policies', 'Transcripts', 'Certificates', 'Calendar']
 const sortOptions = ['Newest', 'Name', 'Status']
 
 export default function DocumentsView() {
-  const [documents, setDocuments] = useState(initialDocuments)
+  const [documents, setDocuments] = useState([])
   const [activeCategory, setActiveCategory] = useState('All')
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedId, setSelectedId] = useState(initialDocuments[0].id)
+  const [selectedId, setSelectedId] = useState(null)
   const [sortOption, setSortOption] = useState('Newest')
+  const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    const loadDocuments = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await fetchDocuments()
+        const normalized = Array.isArray(data) ? data : []
+        setDocuments(normalized)
+        if (normalized.length > 0) {
+          setSelectedId(normalized[0].id)
+        }
+      } catch (err) {
+        setError(err.message || 'Unable to load documents.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDocuments()
+  }, [])
 
   const filteredDocuments = useMemo(() => {
     const filtered = documents.filter((document) => {
       const matchesCategory = activeCategory === 'All' || document.category === activeCategory
-      const matchesSearch = `${document.name} ${document.category} ${document.summary}`.toLowerCase().includes(searchTerm.toLowerCase())
+      const searchable = `${document.title ?? document.name ?? ''} ${document.category ?? ''} ${document.description ?? document.summary ?? ''}`.toLowerCase()
+      const matchesSearch = searchable.includes(searchTerm.toLowerCase())
       return matchesCategory && matchesSearch
     })
 
     return filtered.sort((left, right) => {
       if (sortOption === 'Name') {
-        return left.name.localeCompare(right.name)
+        return (left.title ?? left.name ?? '').localeCompare(right.title ?? right.name ?? '')
       }
       if (sortOption === 'Status') {
-        return left.status.localeCompare(right.status)
+        return (left.status ?? '').localeCompare(right.status ?? '')
       }
-      return right.id - left.id
+      return (right.id ?? 0) - (left.id ?? 0)
     })
   }, [activeCategory, documents, searchTerm, sortOption])
 
   const selectedDocument = filteredDocuments.find((document) => document.id === selectedId) || filteredDocuments[0] || documents[0]
 
-  const handleUpload = (event) => {
+  const getFriendlySize = (size) => {
+    if (typeof size === 'number') {
+      return `${(size / (1024 * 1024)).toFixed(1)} MB`
+    }
+    return String(size || 'Unknown')
+  }
+
+  const handleUpload = async (event) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    const newDocument = {
-      id: Date.now(),
-      name: file.name,
-      category: 'Policies',
-      version: '1.0',
-      status: 'Queued',
-      size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-      owner: 'You',
-      updated: 'Just now',
-      summary: 'Newly uploaded document awaiting review and approval.',
+    setUploading(true)
+    setError('')
+    setMessage('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const uploaded = await uploadDocument(formData)
+      setDocuments((previous) => [uploaded, ...previous])
+      setSelectedId(uploaded.id)
+      setMessage('Document uploaded successfully.')
+    } catch (err) {
+      setError(err.message || 'Upload failed.')
+    } finally {
+      setUploading(false)
     }
-
-    setDocuments((previous) => [newDocument, ...previous])
-    setSelectedId(newDocument.id)
   }
 
   return (
@@ -152,64 +151,86 @@ export default function DocumentsView() {
         </div>
       </div>
 
-      <div className="content-grid">
+      {loading ? (
         <div className="panel">
-          <div className="panel-header">
-            <h3>Document library</h3>
-            <span className="pill">{filteredDocuments.length} results</span>
-          </div>
-          {filteredDocuments.length > 0 ? (
-            <div className="stacked-list">
-              {filteredDocuments.map((document) => (
-                <DocumentListItem key={document.id} document={document} selected={selectedDocument?.id === document.id} onSelect={() => setSelectedId(document.id)} />
-              ))}
-            </div>
-          ) : (
-            <div className="panel">
-              <h4>No documents found</h4>
-              <p className="panel-subtitle">Try another category or search term to locate a document.</p>
-            </div>
-          )}
+          <p>Loading documents...</p>
         </div>
-
-        <div className="panel">
-          <div className="panel-header">
-            <h3>Document preview</h3>
-            <span className="pill">{selectedDocument?.status}</span>
-          </div>
-          {selectedDocument ? (
-            <div className="student-tools">
+      ) : error ? (
+        <div className="panel auth-message error">
+          <p>{error}</p>
+        </div>
+      ) : (
+        <div className="content-grid">
+          <div className="panel">
+            <div className="panel-header">
+              <h3>Document library</h3>
+              <span className="pill">{filteredDocuments.length} results</span>
+            </div>
+            {filteredDocuments.length > 0 ? (
+              <div className="stacked-list">
+                {filteredDocuments.map((document) => (
+                  <DocumentListItem key={document.id} document={{
+                    id: document.id,
+                    name: document.title ?? document.fileName ?? 'Untitled document',
+                    category: document.category ?? document.department ?? 'General',
+                    version: document.version ?? '1.0',
+                    status: document.status ?? 'Unknown',
+                    size: getFriendlySize(document.size),
+                    owner: document.uploadedBy?.full_name ?? document.uploadedBy ?? 'Unknown',
+                    updated: document.updated_at ? new Date(document.updated_at).toLocaleString() : 'Unknown',
+                    summary: document.description ?? '',
+                  }} selected={selectedDocument?.id === document.id} onSelect={() => setSelectedId(document.id)} />
+                ))}
+              </div>
+            ) : (
               <div className="panel">
-                <h4>{selectedDocument.name}</h4>
-                <p className="panel-subtitle">{selectedDocument.summary}</p>
-                <div className="pill-list">
-                  <span className="pill">{selectedDocument.category}</span>
-                  <span className="pill muted">v{selectedDocument.version}</span>
-                  <span className="pill muted">{selectedDocument.size}</span>
-                </div>
+                <h4>No documents found</h4>
+                <p className="panel-subtitle">Try another category or search term to locate a document.</p>
               </div>
-              <div className="student-grid">
-                <div className="panel">
-                  <h4>Owner</h4>
-                  <p className="panel-subtitle">{selectedDocument.owner}</p>
-                </div>
-                <div className="panel">
-                  <h4>Last updated</h4>
-                  <p className="panel-subtitle">{selectedDocument.updated}</p>
-                </div>
-              </div>
-              <div className="student-tools-row">
-                <button className="primary-button" type="button">Download</button>
-                <button className="secondary-button" type="button">Share</button>
-                <button className="secondary-button" type="button">Version history</button>
-              </div>
-            </div>
-          ) : (
-            <p className="panel-subtitle">Select a document to preview it here.</p>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
 
+          <div className="panel">
+            <div className="panel-header">
+              <h3>Document preview</h3>
+              <span className="pill">{selectedDocument?.status}</span>
+            </div>
+            {selectedDocument ? (
+              <div className="student-tools">
+                <div className="panel">
+                  <h4>{selectedDocument.title ?? selectedDocument.fileName ?? 'Untitled document'}</h4>
+                  <p className="panel-subtitle">{selectedDocument.description ?? selectedDocument.summary ?? 'No description available.'}</p>
+                  <div className="pill-list">
+                    <span className="pill">{selectedDocument.category ?? selectedDocument.department ?? 'General'}</span>
+                    <span className="pill muted">v{selectedDocument.version ?? '1.0'}</span>
+                    <span className="pill muted">{getFriendlySize(selectedDocument.size)}</span>
+                  </div>
+                </div>
+                <div className="student-grid">
+                  <div className="panel">
+                    <h4>Owner</h4>
+                    <p className="panel-subtitle">{selectedDocument.uploadedBy?.full_name ?? selectedDocument.uploadedBy ?? 'Unknown'}</p>
+                  </div>
+                  <div className="panel">
+                    <h4>Last updated</h4>
+                    <p className="panel-subtitle">{selectedDocument.updated_at ? new Date(selectedDocument.updated_at).toLocaleString() : 'Unknown'}</p>
+                  </div>
+                </div>
+                <div className="student-tools-row">
+                  <button className="primary-button" type="button">Download</button>
+                  <button className="secondary-button" type="button">Share</button>
+                  <button className="secondary-button" type="button">Version history</button>
+                </div>
+              </div>
+            ) : (
+              <p className="panel-subtitle">Select a document to preview it here.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {message ? <div className="auth-message success">{message}</div> : null}
+      {uploading ? <div className="panel"><p>Uploading document...</p></div> : null}
       <DocumentUploadCard onUpload={handleUpload} />
     </section>
   )

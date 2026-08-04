@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { buildScorePreview, getAssessmentTypeOptions, summarizeAssessments } from './assessmentModuleUtils.js'
+import { fetchAssessments } from '../shared/api.js'
 
 const initialAssessments = [
   { id: 1, title: 'Programming Assignment 1', type: 'Assignment', weight: 10, score: 88, status: 'Approved', date: '2026-07-18' },
@@ -47,6 +48,35 @@ export default function AssessmentView() {
   const [assessments, setAssessments] = useState(initialAssessments)
   const [search, setSearch] = useState('')
   const [formState, setFormState] = useState({ title: 'New assessment', type: 'Assignment', weight: 10, score: 75 })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadAssessments = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await fetchAssessments()
+        if (Array.isArray(data)) {
+          setAssessments(data.map((item) => ({
+            id: item.id,
+            title: item.title || 'Untitled assessment',
+            type: item.type || 'Assignment',
+            weight: item.weights?.reduce((sum, weightItem) => sum + Number(weightItem.weight || 0), 0) || item.weight || 0,
+            score: item.scores?.[0]?.finalMark ?? item.score ?? 0,
+            status: item.status ? String(item.status).replace(/\b(\w)/g, (match) => match.toUpperCase()) : 'Draft',
+            date: item.created_at ? item.created_at.slice(0, 10) : item.date,
+          })))
+        }
+      } catch (err) {
+        setError(err.message || 'Unable to load assessments.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadAssessments()
+  }, [])
 
   const summary = useMemo(() => summarizeAssessments(assessments), [assessments])
   const previewRows = useMemo(() => buildScorePreview(assessments), [assessments])
@@ -73,6 +103,26 @@ export default function AssessmentView() {
       },
       ...current,
     ])
+  }
+
+  if (loading) {
+    return (
+      <section className="student-module-panel">
+        <div className="panel">
+          <p>Loading assessments...</p>
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section className="student-module-panel">
+        <div className="panel auth-message error">
+          <p>{error}</p>
+        </div>
+      </section>
+    )
   }
 
   return (

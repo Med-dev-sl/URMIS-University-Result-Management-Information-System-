@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { fetchUsers } from '../shared/api.js'
 
 const ROLE_OPTIONS = [
   'Students',
@@ -227,13 +228,7 @@ export default function UserManagementView() {
 
     const loadUsers = async () => {
       try {
-        const response = await fetch('/api/users')
-        if (!response.ok) {
-          const body = await response.json().catch(() => ({}))
-          throw new Error(body.message || 'Unable to load users.')
-        }
-
-        const data = await response.json()
+        const data = await fetchUsers()
         if (active && Array.isArray(data)) {
           setUsers(data.map(normalizeUser))
           setSelectedUser(data.length ? normalizeUser(data[0]) : null)

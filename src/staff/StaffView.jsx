@@ -1,18 +1,35 @@
-import { useMemo, useState } from 'react'
-
-const staffProfiles = [
-  { id: 1, name: 'Dr. Amina Yusuf', role: 'Dean of Science', status: 'Active' },
-  { id: 2, name: 'Prof. Daniel Addo', role: 'Head of Department', status: 'Active' },
-  { id: 3, name: 'Mrs. Evelyn Boateng', role: 'Exam Officer', status: 'Pending review' },
-  { id: 4, name: 'Mr. Kofi Mensah', role: 'Lecturer', status: 'Active' },
-]
+import { useEffect, useMemo, useState } from 'react'
+import { fetchStaff } from '../shared/api.js'
 
 export default function StaffView() {
+  const [staffProfiles, setStaffProfiles] = useState([])
   const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadStaffProfiles = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await fetchStaff()
+        setStaffProfiles(Array.isArray(data) ? data : [])
+      } catch (err) {
+        setError(err.message || 'Unable to load staff.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadStaffProfiles()
+  }, [])
 
   const filteredProfiles = useMemo(() => {
-    return staffProfiles.filter((profile) => `${profile.name} ${profile.role} ${profile.status}`.toLowerCase().includes(search.toLowerCase()))
-  }, [search])
+    return staffProfiles.filter((profile) => {
+      const searchable = `${profile.full_name ?? profile.name ?? ''} ${profile.role ?? ''} ${profile.status ?? ''}`.toLowerCase()
+      return searchable.includes(search.toLowerCase())
+    })
+  }, [search, staffProfiles])
 
   return (
     <section className="student-module-panel">
@@ -36,40 +53,50 @@ export default function StaffView() {
         <input className="field-input" placeholder="Search staff" value={search} onChange={(event) => setSearch(event.target.value)} />
       </div>
 
-      <div className="content-grid">
+      {loading ? (
         <div className="panel">
-          <div className="panel-header">
-            <h3>Profiles</h3>
-            <span className="pill">{filteredProfiles.length} results</span>
-          </div>
-          <div className="stacked-list">
-            {filteredProfiles.map((profile) => (
-              <div key={profile.id} className="student-card">
-                <div className="student-card-main">
-                  <div className="user-avatar">{profile.name.split(' ').map((word) => word[0]).slice(0, 2).join('')}</div>
-                  <div>
-                    <strong>{profile.name}</strong>
-                    <p className="panel-subtitle">{profile.role}</p>
+          <p>Loading staff profiles...</p>
+        </div>
+      ) : error ? (
+        <div className="panel auth-message error">
+          <p>{error}</p>
+        </div>
+      ) : (
+        <div className="content-grid">
+          <div className="panel">
+            <div className="panel-header">
+              <h3>Profiles</h3>
+              <span className="pill">{filteredProfiles.length} results</span>
+            </div>
+            <div className="stacked-list">
+              {filteredProfiles.map((profile) => (
+                <div key={profile.id} className="student-card">
+                  <div className="student-card-main">
+                    <div className="user-avatar">{(profile.full_name ?? profile.name ?? '??').split(' ').map((word) => word[0]).slice(0, 2).join('').toUpperCase()}</div>
+                    <div>
+                      <strong>{profile.full_name ?? profile.name}</strong>
+                      <p className="panel-subtitle">{profile.role}</p>
+                    </div>
                   </div>
+                  <span className="pill">{profile.status ?? 'Active'}</span>
                 </div>
-                <span className="pill">{profile.status}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="panel">
-          <div className="panel-header">
-            <h3>Leadership overview</h3>
-            <span className="pill">Roles</span>
+          <div className="panel">
+            <div className="panel-header">
+              <h3>Leadership overview</h3>
+              <span className="pill">Roles</span>
+            </div>
+            <ul className="timeline-list">
+              <li className="timeline-item"><strong>Deans</strong><span>Academic leadership aligned</span><small>{staffProfiles.filter((profile) => profile.role?.toLowerCase().includes('dean')).length}</small></li>
+              <li className="timeline-item"><strong>Heads of Department</strong><span>Department reviews active</span><small>{staffProfiles.filter((profile) => profile.role?.toLowerCase().includes('head')).length}</small></li>
+              <li className="timeline-item"><strong>Lecturers</strong><span>Teaching delivery status stable</span><small>{staffProfiles.filter((profile) => profile.role?.toLowerCase().includes('lecturer')).length}</small></li>
+            </ul>
           </div>
-          <ul className="timeline-list">
-            <li className="timeline-item"><strong>Deans</strong><span>Academic leadership aligned</span><small>1</small></li>
-            <li className="timeline-item"><strong>Heads of Department</strong><span>Department reviews active</span><small>1</small></li>
-            <li className="timeline-item"><strong>Lecturers</strong><span>Teaching delivery status stable</span><small>1</small></li>
-          </ul>
         </div>
-      </div>
+      )}
     </section>
   )
 }

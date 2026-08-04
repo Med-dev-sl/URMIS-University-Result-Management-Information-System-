@@ -1,35 +1,61 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { fetchNotifications } from '../shared/api.js'
 import { filterCommunicationItems } from './communicationUtils.js'
-
-const communicationData = [
-  { id: 1, title: 'Semester registration opens', detail: 'All students should confirm schedules by Friday.', category: 'Announcements', audience: 'Students', priority: 'High' },
-  { id: 2, title: 'Faculty meeting', detail: 'Heads of departments to confirm course allocations.', category: 'Announcements', audience: 'Staff', priority: 'Medium' },
-  { id: 3, title: 'Result publication reminder', detail: 'Lecturers should clear pending approvals before publication.', category: 'Announcements', audience: 'Lecturers', priority: 'High' },
-  { id: 4, sender: 'Registry', subject: 'Transcript request update', detail: 'Transcript request is ready for dispatch.', category: 'Inbox', time: '09:10' },
-  { id: 5, sender: 'Examination Office', subject: 'Certificate issuance checklist', detail: 'Checklist for graduation documents.', category: 'Inbox', time: '08:35' },
-  { id: 6, sender: 'Platform Admin', subject: 'Security notice', detail: 'Review changes to access policies.', category: 'Inbox', time: 'Yesterday' },
-  { id: 7, title: 'Email template: Welcome email', detail: 'Template for student onboarding.', category: 'Email Templates', audience: 'Students', priority: 'Medium' },
-  { id: 8, title: 'SMS template: Attendance alert', detail: 'Reminder for attendance shortage.', category: 'SMS Templates', audience: 'Parents', priority: 'High' },
-  { id: 9, title: 'Broadcast: Fee reminder', detail: 'Scheduled for all active students.', category: 'Broadcast Messages', audience: 'Students', priority: 'High' },
-  { id: 10, title: 'Draft: Semester policy notice', detail: 'Pending review before release.', category: 'Drafts', audience: 'All', priority: 'Low' },
-]
 
 const categories = ['All', 'Announcements', 'Inbox', 'Email Templates', 'SMS Templates', 'Broadcast Messages', 'Drafts']
 const channelTabs = ['Notifications', 'Announcements', 'Messages', 'Email Templates', 'SMS Templates', 'Broadcast Messages', 'Inbox', 'Sent Items', 'Drafts']
 
 export default function CommunicationView() {
+  const [notifications, setNotifications] = useState([])
   const [activeChannel, setActiveChannel] = useState('Notifications')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  const filteredItems = useMemo(() => filterCommunicationItems(communicationData, searchTerm, selectedCategory), [searchTerm, selectedCategory])
+  useEffect(() => {
+    const loadNotifications = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await fetchNotifications()
+        setNotifications(Array.isArray(data) ? data : [])
+      } catch (err) {
+        setError(err.message || 'Unable to load notifications.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadNotifications()
+  }, [])
+
+  const communicationData = useMemo(
+    () => notifications.map((notification) => ({
+      id: notification.id,
+      title: notification.title || notification.category || 'Notification',
+      detail: notification.message || '',
+      category: notification.category || 'Announcements',
+      audience: notification.channel || 'Everyone',
+      priority: notification.is_read ? 'Read' : 'New',
+      sender: notification.sender_name || 'System',
+      subject: notification.title || notification.category || 'Notification',
+      time: notification.created_at ? new Date(notification.created_at).toLocaleString() : 'Unknown',
+    })),
+    [notifications],
+  )
+
+  const filteredItems = useMemo(
+    () => filterCommunicationItems(communicationData, searchTerm, selectedCategory),
+    [communicationData, searchTerm, selectedCategory],
+  )
 
   const metrics = useMemo(() => ({
     announcements: communicationData.filter((item) => item.category === 'Announcements').length,
     inbox: communicationData.filter((item) => item.category === 'Inbox').length,
     templates: communicationData.filter((item) => item.category === 'Email Templates' || item.category === 'SMS Templates').length,
     drafts: communicationData.filter((item) => item.category === 'Drafts').length,
-  }), [])
+  }), [communicationData])
 
   const visibleItems = useMemo(() => {
     if (activeChannel === 'Notifications') {
@@ -102,63 +128,75 @@ export default function CommunicationView() {
         </div>
       </div>
 
-      <div className="student-section-nav">
-        {channelTabs.map((channel) => (
-          <button key={channel} type="button" className={`secondary-button ${activeChannel === channel ? 'primary-button' : ''}`} onClick={() => setActiveChannel(channel)}>{channel}</button>
-        ))}
-      </div>
-
-      <div className="content-grid">
+      {loading ? (
         <div className="panel">
-          <div className="panel-header">
-            <h3>{activeChannel}</h3>
-            <span className="pill">{visibleItems.length} items</span>
+          <p>Loading communication items...</p>
+        </div>
+      ) : error ? (
+        <div className="panel auth-message error">
+          <p>{error}</p>
+        </div>
+      ) : (
+        <>
+          <div className="student-section-nav">
+            {channelTabs.map((channel) => (
+              <button key={channel} type="button" className={`secondary-button ${activeChannel === channel ? 'primary-button' : ''}`} onClick={() => setActiveChannel(channel)}>{channel}</button>
+            ))}
           </div>
-          {visibleItems.length > 0 ? (
-            <div className="stacked-list">
-              {visibleItems.map((item) => (
-                <div key={item.id} className="student-card">
-                  <div className="student-card-main">
-                    <div className="user-avatar">{(item.title || item.subject || item.category).slice(0, 2).toUpperCase()}</div>
-                    <div>
-                      <strong>{item.title || item.subject}</strong>
-                      <p className="panel-subtitle">{item.detail || `From ${item.sender}`}</p>
+
+          <div className="content-grid">
+            <div className="panel">
+              <div className="panel-header">
+                <h3>{activeChannel}</h3>
+                <span className="pill">{visibleItems.length} items</span>
+              </div>
+              {visibleItems.length > 0 ? (
+                <div className="stacked-list">
+                  {visibleItems.map((item) => (
+                    <div key={item.id} className="student-card">
+                      <div className="student-card-main">
+                        <div className="user-avatar">{(item.title || item.subject || item.category).slice(0, 2).toUpperCase()}</div>
+                        <div>
+                          <strong>{item.title || item.subject}</strong>
+                          <p className="panel-subtitle">{item.detail || `From ${item.sender}`}</p>
+                        </div>
+                      </div>
+                      <div className="pill-list">
+                        <span className="pill">{item.category}</span>
+                        <span className="pill muted">{item.priority || item.time}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="pill-list">
-                    <span className="pill">{item.category}</span>
-                    <span className="pill muted">{item.priority || item.time}</span>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <p className="panel-subtitle">No items match the current search and filter selection.</p>
+              )}
             </div>
-          ) : (
-            <p className="panel-subtitle">No items match the current search and filter selection.</p>
-          )}
-        </div>
 
-        <div className="panel">
-          <div className="panel-header">
-            <h3>Quick composer</h3>
-            <span className="pill">Broadcast</span>
-          </div>
-          <div className="student-tools">
-            <label className="field-group">
-              <span className="stat-label">Message</span>
-              <textarea className="field-input" rows={4} placeholder="Compose a notification, email, or SMS" />
-            </label>
-            <label className="field-group">
-              <span className="stat-label">Audience</span>
-              <input className="field-input" placeholder="Students, staff, parents, faculty" />
-            </label>
-            <div className="student-tools-row">
-              <button className="primary-button" type="button">Send</button>
-              <button className="secondary-button" type="button">Schedule</button>
-              <button className="secondary-button" type="button">Save draft</button>
+            <div className="panel">
+              <div className="panel-header">
+                <h3>Quick composer</h3>
+                <span className="pill">Broadcast</span>
+              </div>
+              <div className="student-tools">
+                <label className="field-group">
+                  <span className="stat-label">Message</span>
+                  <textarea className="field-input" rows={4} placeholder="Compose a notification, email, or SMS" />
+                </label>
+                <label className="field-group">
+                  <span className="stat-label">Audience</span>
+                  <input className="field-input" placeholder="Students, staff, parents, faculty" />
+                </label>
+                <div className="student-tools-row">
+                  <button className="primary-button" type="button">Send</button>
+                  <button className="secondary-button" type="button">Schedule</button>
+                  <button className="secondary-button" type="button">Save draft</button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </section>
   )
 }

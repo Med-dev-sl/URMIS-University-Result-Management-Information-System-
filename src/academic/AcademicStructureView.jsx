@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import HierarchyTree from '../shared/components/HierarchyTree.jsx'
+import { fetchAcademicStructure } from '../shared/api.js'
 
 const initialFacultyData = [
   {
@@ -109,6 +110,62 @@ export default function AcademicStructureView() {
   const [editingItem, setEditingItem] = useState(null)
   const [formState, setFormState] = useState(emptyForm)
   const [notice, setNotice] = useState('Manage faculties, departments, programmes, courses, and course categories from one structured workspace.')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadStructure = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await fetchAcademicStructure()
+        if (Array.isArray(data) && data.length > 0) {
+          const institutions = data
+          const faculties = institutions.flatMap((institution) => (institution.faculties ?? []).map((faculty) => ({
+            id: faculty.id,
+            name: faculty.name,
+            code: faculty.code ?? '',
+            children: (faculty.departments ?? []).map((department) => ({
+              id: department.id,
+              name: department.name,
+              code: department.code ?? '',
+              children: (department.courses ?? []).map((course) => ({
+                id: course.id,
+                name: course.course_name || course.course_code,
+                code: course.course_code,
+                children: (course.modules ?? []).map((module) => ({
+                  id: module.id,
+                  name: module.module_name,
+                  code: module.module_code,
+                })),
+              })),
+            })),
+          })))
+
+          const mappedCourses = institutions.flatMap((institution) => (institution.faculties ?? []).flatMap((faculty) => (faculty.departments ?? []).flatMap((department) => (department.courses ?? []).map((course) => ({
+            id: course.id,
+            code: course.course_code,
+            title: course.course_name,
+            category: 'Core',
+            creditUnits: course.credit_hours,
+            department: department.name,
+            semester: 'TBD',
+            status: 'Active',
+            assignedLecturer: 'Unassigned',
+          }))))))
+
+          setFacultyData(faculties)
+          setCourseItems(mappedCourses)
+        }
+      } catch (err) {
+        setError(err.message || 'Unable to load academic structure.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadStructure()
+  }, [])
 
   const activeItems = useMemo(() => {
     if (activeModule === 'course') return courseItems
@@ -195,6 +252,26 @@ export default function AcademicStructureView() {
   }
 
   const hierarchyItems = useMemo(() => facultyData, [facultyData])
+
+  if (loading) {
+    return (
+      <article className="panel academic-structure-panel">
+        <div className="panel">
+          <p>Loading academic structure...</p>
+        </div>
+      </article>
+    )
+  }
+
+  if (error) {
+    return (
+      <article className="panel academic-structure-panel">
+        <div className="panel auth-message error">
+          <p>{error}</p>
+        </div>
+      </article>
+    )
+  }
 
   return (
     <article className="panel academic-structure-panel">

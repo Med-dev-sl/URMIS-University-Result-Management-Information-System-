@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ExaminationActionPanel from './components/ExaminationActionPanel.jsx'
 import ExaminationQueueItem from './components/ExaminationQueueItem.jsx'
 import { summarizeExaminationMetrics } from './examinationModuleUtils.js'
+import { fetchTranscriptRequests } from '../shared/api.js'
 
 const initialItems = [
   {
@@ -43,9 +44,43 @@ const initialItems = [
 ]
 
 export default function ExaminationView() {
-  const [items] = useState(initialItems)
+  const [items, setItems] = useState(initialItems)
   const [selectedItemId, setSelectedItemId] = useState(initialItems[0].id)
   const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadRequests = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await fetchTranscriptRequests()
+        if (Array.isArray(data) && data.length > 0) {
+          const normalized = data.map((request) => ({
+            id: request.id,
+            student: request.student_name || 'Unknown student',
+            course: request.purpose || 'Transcript request',
+            code: String(request.student_id ?? ''),
+            type: request.purpose?.toLowerCase().includes('transcript') ? 'Transcript' : request.purpose?.toLowerCase().includes('certificate') ? 'Certificate' : request.purpose?.toLowerCase().includes('correction') ? 'Correction' : 'Request',
+            status: request.status ? String(request.status).replace(/\b(\w)/g, (match) => match.toUpperCase()) : 'Pending review',
+            dueDate: request.updated_at ? new Date(request.updated_at).toLocaleDateString() : 'Unknown',
+            owner: request.requested_by_name || 'Office',
+            note: request.purpose || request.status || '',
+            category: request.purpose?.includes('Graduation') ? 'Graduation' : 'Regular',
+          }))
+          setItems(normalized)
+          setSelectedItemId(normalized[0].id)
+        }
+      } catch (err) {
+        setError(err.message || 'Unable to load examination requests.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadRequests()
+  }, [])
 
   const metrics = useMemo(() => summarizeExaminationMetrics(items), [items])
   const selectedItem = items.find((item) => item.id === selectedItemId) || items[0]
@@ -54,6 +89,26 @@ export default function ExaminationView() {
     const query = search.toLowerCase()
     return query === '' || [item.student, item.course, item.code, item.type, item.status].join(' ').toLowerCase().includes(query)
   })
+
+  if (loading) {
+    return (
+      <section className="student-module-panel">
+        <div className="panel">
+          <p>Loading examination items...</p>
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section className="student-module-panel">
+        <div className="panel auth-message error">
+          <p>{error}</p>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="student-module-panel">
