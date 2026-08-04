@@ -7,9 +7,16 @@ const STORAGE_KEYS = {
 
 export function getStoredSession() {
   if (typeof window === 'undefined') return null
-  const accessToken = window.localStorage.getItem(STORAGE_KEYS.accessToken)
-  const refreshToken = window.localStorage.getItem(STORAGE_KEYS.refreshToken)
-  const user = window.localStorage.getItem(STORAGE_KEYS.user)
+
+  let accessToken = window.localStorage.getItem(STORAGE_KEYS.accessToken)
+  let refreshToken = window.localStorage.getItem(STORAGE_KEYS.refreshToken)
+  let user = window.localStorage.getItem(STORAGE_KEYS.user)
+
+  if (!accessToken || !user) {
+    accessToken = window.sessionStorage.getItem(STORAGE_KEYS.accessToken)
+    refreshToken = window.sessionStorage.getItem(STORAGE_KEYS.refreshToken)
+    user = window.sessionStorage.getItem(STORAGE_KEYS.user)
+  }
 
   if (!accessToken || !user) return null
 

@@ -2,6 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../auth/useAuth.js'
 import { hasPermission } from '../permissions/permissions.js'
 import LoadingState from '../shared/components/LoadingState.jsx'
+import {
+  fetchPlatformOverview,
+  fetchPlatformMonitoring,
+  fetchInstitutionList,
+  fetchUsers,
+  fetchPlatformSettings,
+  saveInstitution,
+  deleteInstitution,
+} from '../shared/api.js'
 
 const emptyForm = {
   name: '',
@@ -56,24 +65,12 @@ export default function PlatformAdminModule() {
     try {
       setLoading(true)
       setError('')
-      const [overviewResponse, monitoringResponse, institutionsResponse, usersResponse, settingsResponse] = await Promise.all([
-        fetch('/api/platform/overview', { headers: { Authorization: `Bearer ${accessToken}` } }),
-        fetch('/api/platform/monitoring', { headers: { Authorization: `Bearer ${accessToken}` } }),
-        fetch('/api/institution', { headers: { Authorization: `Bearer ${accessToken}` } }),
-        fetch('/api/users', { headers: { Authorization: `Bearer ${accessToken}` } }),
-        fetch('/api/platform/settings', { headers: { Authorization: `Bearer ${accessToken}` } }),
-      ])
-
-      if (!overviewResponse.ok || !monitoringResponse.ok || !institutionsResponse.ok || !usersResponse.ok || !settingsResponse.ok) {
-        throw new Error('Unable to load platform data.')
-      }
-
       const [overviewBody, monitoringBody, institutionsBody, usersBody, settingsBody] = await Promise.all([
-        overviewResponse.json(),
-        monitoringResponse.json(),
-        institutionsResponse.json(),
-        usersResponse.json(),
-        settingsResponse.json(),
+        fetchPlatformOverview(),
+        fetchPlatformMonitoring(),
+        fetchInstitutionList(),
+        fetchUsers(),
+        fetchPlatformSettings(),
       ])
 
       setOverview(overviewBody)
@@ -118,20 +115,7 @@ export default function PlatformAdminModule() {
       setError('')
       const method = editingInstitutionId ? 'PUT' : 'POST'
       const endpoint = editingInstitutionId ? `/api/institution/${editingInstitutionId}` : '/api/institution'
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user.token}`,
-        },
-        body: JSON.stringify(form),
-      })
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}))
-        throw new Error(body.message || 'Institution save failed.')
-      }
-
+      await saveInstitution(form, editingInstitutionId)
       setForm(emptyForm)
       setEditingInstitutionId(null)
       await loadData()
@@ -157,13 +141,7 @@ export default function PlatformAdminModule() {
 
     try {
       setError('')
-      const response = await fetch(`/api/institution/${institutionId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${user.token}` },
-      })
-      if (!response.ok) {
-        throw new Error('Institution deletion failed.')
-      }
+      await deleteInstitution(institutionId)
       await loadData()
     } catch (deleteError) {
       setError(deleteError.message || 'Institution deletion failed.')

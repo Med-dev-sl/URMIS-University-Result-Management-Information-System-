@@ -4,6 +4,7 @@ import { useAuth } from '../auth/useAuth.js'
 import { permissions } from '../permissions/permissions.js'
 import { hasPermission } from '../permissions/permissions.js'
 import LoadingState from '../shared/components/LoadingState.jsx'
+import { fetchPlatformOverview, fetchPlatformMonitoring, fetchInstitutionList, fetchUsers, fetchAuditLogs } from '../shared/api.js'
 
 const DEFAULT_SETTINGS = {
   platformName: 'URMIS',
@@ -189,24 +190,12 @@ export default function SystemAdminView() {
       setError('')
 
       try {
-        const [overviewRes, monitoringRes, institutionsRes, adminsRes, auditRes] = await Promise.all([
-          fetch('/api/platform/overview', { headers: { Authorization: `Bearer ${user.token}` } }),
-          fetch('/api/platform/monitoring', { headers: { Authorization: `Bearer ${user.token}` } }),
-          fetch('/api/institution', { headers: { Authorization: `Bearer ${user.token}` } }),
-          fetch('/api/users', { headers: { Authorization: `Bearer ${user.token}` } }),
-          fetch('/api/platform/audit-logs?limit=50', { headers: { Authorization: `Bearer ${user.token}` } }),
-        ])
-
-        if (!overviewRes.ok || !monitoringRes.ok || !institutionsRes.ok || !adminsRes.ok || !auditRes.ok) {
-          throw new Error('Unable to load system administration data.')
-        }
-
         const [overviewBody, monitoringBody, institutionsBody, adminsBody, auditBody] = await Promise.all([
-          overviewRes.json(),
-          monitoringRes.json(),
-          institutionsRes.json(),
-          adminsRes.json(),
-          auditRes.json(),
+          fetchPlatformOverview(),
+          fetchPlatformMonitoring(),
+          fetchInstitutionList(),
+          fetchUsers(),
+          fetchAuditLogs(50),
         ])
 
         if (!active) return

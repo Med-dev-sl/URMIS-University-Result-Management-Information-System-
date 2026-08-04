@@ -1,113 +1,31 @@
-const apiBase = '/api'
+import { apiClient } from '../services/apiClient.js'
 
-export const fetchDashboard = async () => {
-  const response = await fetch(`${apiBase}/dashboard`)
-  if (!response.ok) throw new Error('Dashboard load failed')
-  return response.json()
-}
+export const fetchDashboard = () => apiClient.get('/dashboard')
+export const fetchStudents = () => apiClient.get('/students')
+export const fetchStaff = () => apiClient.get('/staff')
+export const fetchFaculties = () => apiClient.get('/faculties')
+export const fetchDepartments = (facultyId) => apiClient.get(`/departments${facultyId ? `?faculty_id=${encodeURIComponent(facultyId)}` : ''}`)
+export const fetchCourses = (departmentId) => apiClient.get(`/courses${departmentId ? `?department_id=${encodeURIComponent(departmentId)}` : ''}`)
+export const fetchModules = (courseId) => apiClient.get(`/modules${courseId ? `?course_id=${encodeURIComponent(courseId)}` : ''}`)
+export const fetchAcademicStructure = () => apiClient.get('/academics/structure')
+export const fetchNotifications = () => apiClient.get('/communication/notifications')
+export const fetchDocuments = () => apiClient.get('/documents')
+export const fetchTranscriptRequests = () => apiClient.get('/examination/transcript-requests')
+export const fetchApprovalTasks = () => apiClient.get('/approval/tasks')
+export const actionApprovalTask = (id, action, comment = '') => apiClient.post(`/approval/tasks/${id}/actions`, { action, comment })
+export const fetchAssessments = () => apiClient.get('/assessments')
+export const fetchPlatformOverview = () => apiClient.get('/platform/overview')
+export const fetchPlatformMonitoring = () => apiClient.get('/platform/monitoring')
+export const fetchInstitutionList = () => apiClient.get('/institution')
+export const fetchPlatformSettings = () => apiClient.get('/platform/settings')
+export const saveInstitution = (payload, id) => (id ? apiClient.put(`/institution/${id}`, payload) : apiClient.post('/institution', payload))
+export const deleteInstitution = (id) => apiClient.delete(`/institution/${id}`)
+export const fetchUsers = () => apiClient.get('/users')
+export const fetchAuditLogs = (limit) => apiClient.get(`/platform/audit-logs${limit ? `?limit=${encodeURIComponent(limit)}` : ''}`)
 
-export const fetchStudents = async () => {
-  const response = await fetch(`${apiBase}/students`)
-  if (!response.ok) throw new Error('Student load failed')
-  return response.json()
-}
-
-export const fetchFaculties = async () => {
-  const response = await fetch(`${apiBase}/faculties`)
-  if (!response.ok) throw new Error('Faculty load failed')
-  return response.json()
-}
-
-export const fetchDepartments = async (facultyId) => {
-  const query = facultyId ? `?faculty_id=${encodeURIComponent(facultyId)}` : ''
-  const response = await fetch(`${apiBase}/departments${query}`)
-  if (!response.ok) throw new Error('Department load failed')
-  return response.json()
-}
-
-export const fetchCourses = async (departmentId) => {
-  const query = departmentId ? `?department_id=${encodeURIComponent(departmentId)}` : ''
-  const response = await fetch(`${apiBase}/courses${query}`)
-  if (!response.ok) throw new Error('Course load failed')
-  return response.json()
-}
-
-export const fetchModules = async (courseId) => {
-  const query = courseId ? `?course_id=${encodeURIComponent(courseId)}` : ''
-  const response = await fetch(`${apiBase}/modules${query}`)
-  if (!response.ok) throw new Error('Module load failed')
-  return response.json()
-}
-
-export const createFaculty = async (payload) => {
-  const response = await fetch(`${apiBase}/faculties`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(body.message || 'Faculty creation failed')
-  }
-  return response.json()
-}
-
-export const createDepartment = async (payload) => {
-  const response = await fetch(`${apiBase}/departments`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(body.message || 'Department creation failed')
-  }
-  return response.json()
-}
-
-export const createCourse = async (payload) => {
-  const response = await fetch(`${apiBase}/courses`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(body.message || 'Course creation failed')
-  }
-  return response.json()
-}
-
-export const createModule = async (payload) => {
-  const response = await fetch(`${apiBase}/modules`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(body.message || 'Module creation failed')
-  }
-  return response.json()
-}
-
-export const createResult = async (payload) => {
-  const response = await fetch(`${apiBase}/results`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    throw new Error(body.message || 'Result creation failed')
-  }
-
-  return response.json()
-}
-
-export const fetchResults = async () => {
-  const response = await fetch(`${apiBase}/results`)
-  if (!response.ok) throw new Error('Results load failed')
-  return response.json()
-}
+export const createFaculty = (payload) => apiClient.post('/faculties', payload)
+export const createDepartment = (payload) => apiClient.post('/departments', payload)
+export const createCourse = (payload) => apiClient.post('/courses', payload)
+export const createModule = (payload) => apiClient.post('/modules', payload)
+export const createResult = (payload) => apiClient.post('/results', payload)
+export const fetchResults = () => apiClient.get('/results')

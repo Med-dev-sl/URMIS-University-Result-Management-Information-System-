@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import DashboardView from './DashboardView.jsx'
 import { useAuth } from '../auth/useAuth.js'
+import { fetchDashboard } from '../shared/api.js'
 
 const emptyDashboard = {
   stats: [],
@@ -21,13 +22,7 @@ export default function DashboardPage() {
       try {
         setLoading(true)
         setError('')
-        const response = await fetch('/api/dashboard')
-        if (!response.ok) {
-          const body = await response.json().catch(() => ({}))
-          throw new Error(body.message || 'Unable to load dashboard data.')
-        }
-
-        const data = await response.json()
+        const data = await fetchDashboard()
         if (active) {
           setDashboard(data)
         }

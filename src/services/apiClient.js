@@ -1,9 +1,21 @@
+import { getStoredSession } from './storage.js'
+
 const API_BASE = '/api'
+
+function getAccessToken() {
+  const session = getStoredSession()
+  return session?.accessToken ?? null
+}
 
 async function request(path, options = {}) {
   const headers = new Headers(options.headers || {})
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
+  }
+
+  const accessToken = getAccessToken()
+  if (accessToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${accessToken}`)
   }
 
   const response = await fetch(`${API_BASE}${path}`, {
