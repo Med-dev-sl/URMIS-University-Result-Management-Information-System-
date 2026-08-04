@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { clearSession, getStoredSession, persistSession } from '../../services/storage.js'
 import { getRolePermissions, normalizeRoleName } from '../../permissions/roles.js'
+import { authApi } from '../../services/authApi.js'
 
 const AuthContext = createContext(null)
 
@@ -30,17 +31,7 @@ export function AuthProvider({ children }) {
   const signIn = useCallback(async ({ email, password, rememberMe }) => {
     setLoading(true)
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const body = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        throw new Error(body.message || 'Invalid email or password')
-      }
-
+      const body = await authApi.login({ email, password })
       const normalizedUser = normalizeUser({ ...body.user, token: body.accessToken }, body.accessToken)
       const session = {
         accessToken: body.accessToken,
@@ -74,16 +65,7 @@ export function AuthProvider({ children }) {
       setLoading(true)
     }
     try {
-      const response = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: stored.refreshToken }),
-      })
-
-      const body = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        throw new Error(body.message || 'Session expired')
-      }
+      const body = await authApi.refresh(stored.refreshToken)
 
       const refreshed = {
         accessToken: body.accessToken,

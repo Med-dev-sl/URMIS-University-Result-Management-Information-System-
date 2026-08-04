@@ -12,6 +12,7 @@ import PasswordForm from '../shared/components/PasswordForm.jsx'
 import { calculatePasswordStrength, getPasswordStrengthLabel } from '../auth/authService.js'
 import { getMockUniversities } from '../shared/services/authMockService.js'
 import { useAuth } from '../auth/useAuth.js'
+import { authApi } from '../services/authApi.js'
 
 const modeMeta = {
   login: {
@@ -154,21 +155,12 @@ export default function AuthenticationView({ mode = 'login', onModeChange, onAut
           throw new Error('Passwords do not match.')
         }
 
-        const response = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            full_name: form.fullName,
-            email: form.email,
-            password: form.password,
-            role: 'student',
-          }),
+        const body = await authApi.register({
+          full_name: form.fullName,
+          email: form.email,
+          password: form.password,
+          role: 'student',
         })
-
-        const body = await response.json().catch(() => ({}))
-        if (!response.ok) {
-          throw new Error(body.message || 'Account could not be created.')
-        }
 
         setMessage(body.verificationToken ? 'Account created. Please verify your email to continue.' : 'Account created. You can now sign in.')
         onModeChange?.('login')
@@ -239,21 +231,12 @@ export default function AuthenticationView({ mode = 'login', onModeChange, onAut
       }
 
       if (activationStep === 'identity') {
-        const response = await fetch('/api/auth/activate/validate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            universityId: form.universityId,
-            accountType: form.accountType,
-            identityValue: form.identityValue,
-            token: form.token,
-          }),
+        const body = await authApi.activateValidate({
+          universityId: form.universityId,
+          accountType: form.accountType,
+          identityValue: form.identityValue,
+          token: form.token,
         })
-
-        const body = await response.json().catch(() => ({}))
-        if (!response.ok) {
-          throw new Error(body.message || 'Activation could not be verified.')
-        }
 
         setActivationSession(body.session)
         setActivationStep('profile')
@@ -270,16 +253,7 @@ export default function AuthenticationView({ mode = 'login', onModeChange, onAut
           throw new Error('Please choose a matching password.')
         }
 
-        const response = await fetch('/api/auth/activate/complete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: activationSession?.userId, password: form.password }),
-        })
-
-        const body = await response.json().catch(() => ({}))
-        if (!response.ok) {
-          throw new Error(body.message || 'Activation could not be completed.')
-        }
+        const body = await authApi.activateComplete({ userId: activationSession?.userId, password: form.password })
 
         setMessage(body.message || 'Account activation completed successfully.')
         setActivationStep('complete')
