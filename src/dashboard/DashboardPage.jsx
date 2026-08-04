@@ -3,15 +3,9 @@ import DashboardView from './DashboardView.jsx'
 import { useAuth } from '../auth/useAuth.js'
 import { fetchDashboard } from '../shared/api.js'
 
-const emptyDashboard = {
-  stats: [],
-  students: [],
-  recentResults: [],
-}
-
 export default function DashboardPage() {
   const { user } = useAuth()
-  const [dashboard, setDashboard] = useState(emptyDashboard)
+  const [dashboard, setDashboard] = useState({ stats: [], students: [], recentResults: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 

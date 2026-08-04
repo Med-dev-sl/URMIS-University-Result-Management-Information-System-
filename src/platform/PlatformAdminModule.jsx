@@ -113,8 +113,6 @@ export default function PlatformAdminModule() {
 
     try {
       setError('')
-      const method = editingInstitutionId ? 'PUT' : 'POST'
-      const endpoint = editingInstitutionId ? `/api/institution/${editingInstitutionId}` : '/api/institution'
       await saveInstitution(form, editingInstitutionId)
       setForm(emptyForm)
       setEditingInstitutionId(null)

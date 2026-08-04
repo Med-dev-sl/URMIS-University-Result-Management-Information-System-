@@ -142,17 +142,23 @@ export default function AcademicStructureView() {
             })),
           })))
 
-          const mappedCourses = institutions.flatMap((institution) => (institution.faculties ?? []).flatMap((faculty) => (faculty.departments ?? []).flatMap((department) => (department.courses ?? []).map((course) => ({
-            id: course.id,
-            code: course.course_code,
-            title: course.course_name,
-            category: 'Core',
-            creditUnits: course.credit_hours,
-            department: department.name,
-            semester: 'TBD',
-            status: 'Active',
-            assignedLecturer: 'Unassigned',
-          }))))))
+          const mappedCourses = institutions.flatMap((institution) =>
+            (institution.faculties ?? []).flatMap((faculty) =>
+              (faculty.departments ?? []).flatMap((department) =>
+                (department.courses ?? []).map((course) => ({
+                  id: course.id,
+                  code: course.course_code,
+                  title: course.course_name,
+                  category: 'Core',
+                  creditUnits: course.credit_hours,
+                  department: department.name,
+                  semester: 'TBD',
+                  status: 'Active',
+                  assignedLecturer: 'Unassigned',
+                }))
+              )
+            )
+          )
 
           setFacultyData(faculties)
           setCourseItems(mappedCourses)
